@@ -1,0 +1,1362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ONE WORLD — Media, Science, Culture &amp; Knowledge</title>
+<meta name="description" content="One window to global public media, open books, ancient philosophy and open science. No login, no tracking.">
+<style>
+:root{
+  --bg:#060a11; --panel:#0f1826; --panel2:#0b1320; --line:#1d2a3e; --line2:#26364f;
+  --text:#e9eff8; --muted:#8397b3; --accent:#ff8a3d; --accent2:#6fb2ff;
+  --ok:#57d38c; --bad:#ff6b6b; --gold:#e3c07b;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+     font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+a{color:var(--accent2);text-decoration:none;}
+a:hover{text-decoration:underline;}
+
+/* header */
+header{position:sticky;top:0;z-index:40;background:rgba(6,10,17,.96);backdrop-filter:blur(8px);
+       border-bottom:1px solid var(--line);}
+.hrow{display:flex;align-items:center;gap:12px;padding:11px 18px;flex-wrap:wrap;}
+.brand{font-size:15px;font-weight:700;letter-spacing:.6px;white-space:nowrap;}
+.brand span{color:var(--accent);}
+.gsearch{flex:1;min-width:180px;display:flex;gap:6px;}
+.gsearch input{flex:1;background:#08101b;border:1px solid var(--line);color:var(--text);
+  border-radius:8px;padding:8px 11px;font-size:12.5px;outline:none;font-family:inherit;}
+.gsearch input:focus{border-color:#3a5075;}
+.gsearch button{background:var(--accent);color:#141a22;border:0;border-radius:8px;
+  padding:8px 13px;font-size:12px;font-weight:600;cursor:pointer;}
+
+nav{display:flex;gap:4px;overflow-x:auto;padding:0 14px;border-bottom:1px solid var(--line);
+    scrollbar-width:none;background:var(--panel2);}
+nav::-webkit-scrollbar{display:none;}
+nav button{background:transparent;border:0;border-bottom:2px solid transparent;color:var(--muted);
+  padding:10px 12px;font-size:12.5px;cursor:pointer;white-space:nowrap;font-family:inherit;}
+nav button.on{color:var(--text);border-bottom-color:var(--accent);}
+nav button:hover{color:var(--text);}
+
+/* ticker */
+.ticker{display:flex;align-items:center;gap:10px;padding:6px 18px;background:#0a121e;
+        border-bottom:1px solid var(--line);font-size:11.5px;overflow:hidden;}
+.ticker .lab{color:var(--accent);font-weight:700;letter-spacing:.5px;white-space:nowrap;font-size:10px;}
+.ticker .t{flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--muted);}
+.ticker .t a{color:#cfe0f7;}
+
+main{padding:16px;max-width:1500px;margin:0 auto;min-height:60vh;}
+.view{display:none;} .view.on{display:block;}
+
+h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);
+       margin:22px 0 10px;font-weight:600;}
+h2.sec:first-child{margin-top:4px;}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:11px;padding:15px 17px;}
+.muted{color:var(--muted);} .small{font-size:11.5px;}
+.grid{display:grid;gap:11px;}
+.g-auto{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}
+.g-wide{grid-template-columns:repeat(auto-fill,minmax(290px,1fr));}
+.g-tall{grid-template-columns:repeat(auto-fill,minmax(320px,1fr));}
+
+/* media tiles */
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;
+      cursor:pointer;transition:.15s;}
+.tile:hover{border-color:#3b5480;transform:translateY(-2px);}
+.thumb{aspect-ratio:16/10;background:#0a111c;display:flex;align-items:center;justify-content:center;position:relative;}
+.thumb img{max-width:78%;max-height:78%;object-fit:contain;}
+.thumb .ini{font-size:20px;font-weight:700;color:#33496b;}
+.qual{position:absolute;right:5px;bottom:5px;font-size:9px;background:rgba(0,0,0,.62);
+      color:#cfe0f7;padding:1px 5px;border-radius:4px;}
+.tinfo{padding:7px 9px;}
+.tname{font-size:12px;font-weight:600;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;
+       -webkit-box-orient:vertical;overflow:hidden;}
+.tmeta{font-size:10px;color:var(--muted);margin-top:3px;}
+
+/* controls */
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}
+select,.inp{background:#08101b;border:1px solid var(--line);color:var(--text);border-radius:8px;
+  padding:7px 10px;font-size:12.5px;outline:none;font-family:inherit;}
+select:focus,.inp:focus{border-color:#3a5075;}
+.btn{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;
+  padding:7px 12px;font-size:12px;cursor:pointer;white-space:nowrap;font-family:inherit;}
+.btn:hover{color:var(--text);border-color:#33456a;}
+.btn.on{background:var(--accent);color:#141a22;border-color:var(--accent);font-weight:600;}
+.chips{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;scrollbar-width:none;}
+.chips::-webkit-scrollbar{display:none;}
+.chip{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:999px;
+  padding:5px 12px;font-size:11.5px;cursor:pointer;white-space:nowrap;font-family:inherit;}
+.chip.on{background:#1b2942;color:#cfe0f7;border-color:#34507a;}
+
+/* cards */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden;
+      display:flex;flex-direction:column;}
+.card .body{padding:12px 13px;flex:1;display:flex;flex-direction:column;gap:6px;}
+.card h3{margin:0;font-size:13.5px;font-weight:600;line-height:1.4;}
+.card p{margin:0;font-size:11.5px;color:var(--muted);line-height:1.55;}
+.tagrow{display:flex;gap:6px;flex-wrap:wrap;font-size:10px;color:var(--muted);}
+.pill{border:1px solid var(--line);border-radius:999px;padding:1px 7px;white-space:nowrap;}
+
+/* home */
+.hero{background:linear-gradient(135deg,#12203a,#0b1420 60%);border:1px solid var(--line2);
+      border-radius:13px;padding:20px 22px;margin-bottom:16px;}
+.hero h1{margin:0 0 6px;font-size:21px;letter-spacing:.2px;}
+.hero p{margin:0;color:var(--muted);font-size:12.5px;max-width:760px;line-height:1.65;}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:14px;}
+.stat{background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:9px;padding:9px 11px;}
+.stat b{display:block;font-size:17px;color:var(--accent);}
+.stat span{font-size:10.5px;color:var(--muted);}
+
+/* wisdom */
+.wisdom{background:linear-gradient(150deg,#1a1508,#0d1320 65%);border:1px solid #3a2f18;
+        border-radius:12px;padding:18px 20px;}
+.wisdom .trad{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);}
+.wisdom .orig{font-size:19px;line-height:1.75;margin:10px 0 6px;color:#f2e6cf;}
+.wisdom .translit{font-style:italic;color:#b9a986;font-size:12.5px;margin-bottom:10px;}
+.wisdom .en{font-size:13.5px;line-height:1.7;margin:8px 0;}
+.wisdom .hi{font-size:13px;line-height:1.8;color:#cfe0f7;margin:8px 0;}
+.wisdom .ref{font-size:11px;color:var(--muted);margin-top:10px;border-top:1px solid #33291a;padding-top:9px;}
+
+/* misc */
+.empty{padding:34px 10px;text-align:center;color:var(--muted);font-size:12.5px;line-height:1.9;}
+.toast{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);background:#16233a;
+  border:1px solid #2c4265;color:#cfe0f7;padding:9px 15px;border-radius:9px;font-size:12px;
+  z-index:90;opacity:0;transition:opacity .25s;pointer-events:none;max-width:92vw;text-align:center;}
+.toast.show{opacity:1;}
+footer{padding:18px;text-align:center;color:#54677f;font-size:11px;border-top:1px solid var(--line);margin-top:24px;}
+.notice{background:#0a1220;border:1px solid var(--line);border-left:3px solid var(--accent);
+        border-radius:9px;padding:13px 15px;font-size:12px;line-height:1.75;color:var(--muted);margin-top:16px;}
+.notice b{color:var(--text);}
+code{background:#182338;padding:1px 5px;border-radius:4px;font-size:11px;color:#cfe0f7;}
+
+/* player */
+.overlay{position:fixed;inset:0;background:rgba(3,7,12,.95);z-index:60;display:none;
+         align-items:center;justify-content:center;padding:14px;}
+.overlay.open{display:flex;}
+.player{width:min(1100px,100%);background:var(--panel);border:1px solid var(--line);
+        border-radius:12px;overflow:hidden;display:flex;flex-direction:column;}
+.pstage{position:relative;aspect-ratio:16/9;background:#000;}
+.pstage video{width:100%;height:100%;display:block;}
+.pstatus{position:absolute;left:0;right:0;bottom:0;padding:6px 10px;font-size:10.5px;
+  background:linear-gradient(0deg,rgba(0,0,0,.9),transparent);color:var(--muted);}
+.pstatus b{color:var(--ok);} .pstatus.err b{color:var(--bad);}
+.ccbox{position:absolute;left:8px;right:8px;bottom:34px;text-align:center;pointer-events:none;
+  display:flex;flex-direction:column;gap:3px;}
+.ccline{display:inline-block;background:rgba(0,0,0,.78);color:#fff;font-size:14px;line-height:1.45;
+  padding:4px 9px;border-radius:5px;max-width:92%;margin:0 auto;white-space:pre-wrap;}
+.ccline .src{display:block;font-size:11px;color:#9fb4cf;margin-top:2px;}
+.pbar{display:flex;align-items:center;gap:8px;padding:9px 12px;border-top:1px solid var(--line);flex-wrap:wrap;}
+.ptitle{flex:1;min-width:120px;}
+.ptitle .n{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ptitle .s{font-size:10.5px;color:var(--muted);}
+.tbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:8px 12px;
+      border-top:1px solid var(--line);background:#0c1624;}
+.tlab{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+.tstat{font-size:10.5px;color:var(--muted);margin-left:auto;}
+.tbar .btn{padding:5px 9px;font-size:11px;}
+
+@media(max-width:600px){
+  .hero h1{font-size:18px;}
+  main{padding:12px;}
+  .hrow{padding:9px 12px;}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hrow">
+    <div class="brand">ONE <span>WORLD</span></div>
+    <div class="gsearch">
+      <input id="gq" type="search" placeholder="Search countries, channels, books, scriptures, papers…" spellcheck="false">
+      <button id="gbtn">Search</button>
+    </div>
+  </div>
+  <nav id="nav">
+    <button data-v="home" class="on">Home</button>
+    <button data-v="media">TV &amp; Radio</button>
+    <button data-v="news">News</button>
+    <button data-v="library">Library</button>
+    <button data-v="wisdom">Wisdom</button>
+    <button data-v="science">Science</button>
+    <button data-v="atlas">World Atlas</button>
+  </nav>
+  <div class="ticker"><span class="lab">LIVE</span><span class="t" id="tick">loading headlines…</span></div>
+</header>
+
+<main>
+
+  <!-- ================= HOME ================= -->
+  <section class="view on" id="v-home">
+    <div class="hero">
+      <h1>One window to global media, science, culture and human knowledge</h1>
+      <p>Public television and radio from around the world, open-access books, ancient philosophy,
+         open science and world news — in one place. No account, no tracking, no paywall.</p>
+      <div class="stats" id="stats">
+        <div class="stat"><b id="stClock">—</b><span>your local time</span></div>
+        <div class="stat"><b id="stCountries">—</b><span>countries</span></div>
+        <div class="stat"><b id="stChannels">—</b><span>channels indexed</span></div>
+        <div class="stat"><b id="stBooks">—</b><span>open books reachable</span></div>
+      </div>
+    </div>
+
+    <h2 class="sec">Daily wisdom</h2>
+    <div id="homeWisdom"></div>
+
+    <h2 class="sec">World clock</h2>
+    <div class="grid g-wide" id="homeClock"></div>
+
+    <h2 class="sec">Top headlines</h2>
+    <div class="grid g-wide" id="homeNews"></div>
+
+    <div class="notice">
+      <b>What this is.</b> A client-side reader over open sources: the community
+      <code>iptv-org</code> channel index, public RSS feeds, Project Gutenberg via Gutendex,
+      Open Library, Internet Archive, OpenAlex and NASA. No API keys are stored in this page,
+      no analytics run, and nothing about you is transmitted anywhere except the requests needed
+      to fetch what you asked for. <b>Known limits:</b> a channel being listed is not proof it is
+      licensed in your country; feeds and APIs can rate-limit; and some streams refuse
+      cross-origin playback.
+    </div>
+  </section>
+
+  <!-- ================= MEDIA ================= -->
+  <section class="view" id="v-media">
+    <div class="row">
+      <select id="country" title="Country"></select>
+      <input class="inp" id="mq" type="search" placeholder="Search channel…" spellcheck="false" style="flex:1;min-width:160px">
+      <button class="btn" id="mRefresh">Refresh index</button>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="grid g-auto" id="mgrid"></div>
+    <div class="empty" id="mempty" style="display:none"></div>
+  </section>
+
+  <!-- ================= NEWS ================= -->
+  <section class="view" id="v-news">
+    <div class="chips" id="newschips"></div>
+    <div class="row">
+      <select id="newsRegion">
+        <option value="all">All regions</option>
+        <option value="in">India</option>
+        <option value="world">World</option>
+        <option value="science">Science &amp; space</option>
+        <option value="business">Business</option>
+        <option value="environment">Environment</option>
+      </select>
+      <button class="btn" id="newsRefresh">Refresh</button>
+      <span class="small muted" id="newsStatus"></span>
+    </div>
+    <div class="grid g-wide" id="newsgrid"></div>
+    <div class="notice">
+      <b>Sources.</b> Headlines come from the publishers' own public RSS feeds, fetched through a
+      CORS relay. Every card links to the original article on the publisher's site and shows the
+      publication time and publisher. Nothing is rewritten or republished here.
+    </div>
+  </section>
+
+  <!-- ================= LIBRARY ================= -->
+  <section class="view" id="v-library">
+    <div class="row">
+      <input class="inp" id="bq" type="search" placeholder="Search books, authors, subjects…" style="flex:1;min-width:200px" spellcheck="false">
+      <select id="blang">
+        <option value="">Any language</option>
+        <option value="en">English</option>
+        <option value="hi">Hindi</option>
+        <option value="sa">Sanskrit</option>
+        <option value="fr">French</option>
+        <option value="de">German</option>
+        <option value="es">Spanish</option>
+        <option value="ta">Tamil</option>
+        <option value="bn">Bengali</option>
+      </select>
+      <button class="btn" id="bSearch">Search</button>
+      <button class="btn" id="bPop">Popular</button>
+    </div>
+    <div class="row">
+      <span class="small muted">Collections:</span>
+      <button class="btn on" data-coll="gutenberg">Project Gutenberg</button>
+      <button class="btn" data-coll="openlibrary">Open Library</button>
+      <button class="btn" data-coll="archive">Internet Archive</button>
+    </div>
+    <div class="grid g-wide" id="bgrid"></div>
+    <div class="empty" id="bempty" style="display:none">Search to begin — try “Upanishads”, “Darwin”, “Tagore”.</div>
+    <div class="notice">
+      <b>Copyright note.</b> Project Gutenberg items are public domain in the United States; Open Library
+      and Internet Archive items may be lending-restricted or in-copyright, so those links open the
+      provider's own reader where their terms decide access. A book appearing online is <i>not</i> proof
+      it is public domain — check the licence shown on the source page before reusing anything.
+    </div>
+  </section>
+
+  <!-- ================= WISDOM ================= -->
+  <section class="view" id="v-wisdom">
+    <h2 class="sec">The Wisdom Archive — ancient knowledge, timeless philosophy</h2>
+    <div class="chips" id="wchips"></div>
+    <div id="wDaily"></div>
+
+    <h2 class="sec">Explore the archive</h2>
+    <div class="grid g-wide" id="wgrid"></div>
+
+    <h2 class="sec">Compare philosophical traditions</h2>
+    <div class="grid g-wide" id="wcompare"></div>
+
+    <div class="notice">
+      <b>Scholarly standard.</b> Every entry names its tradition, source text and reference, and links to
+      an external scholarly edition so you can verify it. Original-language text is given in its own
+      script with a Roman transliteration. English and Hindi renderings here are project translations
+      made for orientation, not authoritative editions — where traditions or translators differ, that is
+      noted. Nothing is invented: entries are limited to passages the project can cite, and this is a
+      starter set meant to grow through verified catalogues, not a complete canon.
+    </div>
+  </section>
+
+  <!-- ================= SCIENCE ================= -->
+  <section class="view" id="v-science">
+    <h2 class="sec">Astronomy picture of the day</h2>
+    <div id="apod"></div>
+
+    <h2 class="sec">Open research</h2>
+    <div class="row">
+      <input class="inp" id="sq" type="search" placeholder="Search open research — e.g. “exoplanet atmospheres”" style="flex:1;min-width:200px" spellcheck="false">
+      <button class="btn" id="sSearch">Search</button>
+    </div>
+    <div class="grid g-wide" id="sgrid"></div>
+
+    <h2 class="sec">Open data &amp; agency portals</h2>
+    <div class="grid g-wide" id="slinks"></div>
+  </section>
+
+  <!-- ================= ATLAS ================= -->
+  <section class="view" id="v-atlas">
+    <div class="row">
+      <input class="inp" id="aq" type="search" placeholder="Search country, capital, language…" style="flex:1;min-width:200px" spellcheck="false">
+      <select id="areg">
+        <option value="all">All regions</option>
+        <option value="Asia">Asia</option>
+        <option value="Europe">Europe</option>
+        <option value="Africa">Africa</option>
+        <option value="Americas">Americas</option>
+        <option value="Oceania">Oceania</option>
+      </select>
+    </div>
+    <div class="grid g-wide" id="agrid"></div>
+  </section>
+
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="player">
+    <div class="pstage">
+      <video id="pvideo" controls playsinline></video>
+      <div class="pstatus" id="pstatus"></div>
+      <div class="ccbox" id="ccbox"></div>
+    </div>
+    <div class="pbar">
+      <div class="ptitle"><div class="n" id="pname">—</div><div class="s" id="psub"></div></div>
+      <button class="btn" id="prevBtn">‹ Prev</button>
+      <button class="btn" id="nextBtn">Next ›</button>
+      <button class="btn" id="closeBtn">Close</button>
+    </div>
+    <div class="tbar">
+      <span class="tlab">Translate</span>
+      <select id="langSel" title="Target language"></select>
+      <button class="btn" id="ccBtn" title="Translated captions">CC</button>
+      <button class="btn" id="voiceBtn" title="Speak translation">🔊 Voice</button>
+      <button class="btn" id="asrBtn" title="Transcribe with in-browser Whisper">Transcribe</button>
+      <span class="tstat" id="tstat">idle</span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<footer>
+  Public media, open books, open science. Streams and texts belong to their publishers.
+  No login, no analytics, no third-party trackers.
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+<script>
+/* ================================================================
+   ONE WORLD — single-file client-side platform
+   Sources: iptv-org · restcountries · Gutendex · Open Library ·
+            Internet Archive · OpenAlex · NASA APOD · publisher RSS
+   ================================================================ */
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, m =>
+  ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+
+function toast(msg, ms = 2600){
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("show"), ms);
+}
+
+/* ---------- network helpers (no keys; proxy only for CORS-blocked feeds) ---------- */
+const PROXIES = [
+  u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+  u => "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u)
+];
+
+async function jget(url, { proxy = false, timeout = 15000 } = {}){
+  const ctl = new AbortController();
+  const to = setTimeout(() => ctl.abort(), timeout);
+  try{
+    const r = await fetch(url, { signal: ctl.signal, headers: { Accept: "application/json" } });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return await r.json();
+  } finally { clearTimeout(to); }
+}
+
+async function tget(url, { timeout = 15000 } = {}){
+  const ctl = new AbortController();
+  const to = setTimeout(() => ctl.abort(), timeout);
+  try{
+    const r = await fetch(url, { signal: ctl.signal });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return await r.text();
+  } finally { clearTimeout(to); }
+}
+
+async function fetchAny(url, { timeout = 15000 } = {}){
+  try { return await tget(url, { timeout }); } catch(e){}
+  for (const p of PROXIES){
+    try { return await tget(p(url), { timeout: timeout + 8000 }); } catch(e){}
+  }
+  throw new Error("unreachable");
+}
+
+/* ================= STATE ================= */
+const S = {
+  view:"home", countries:[], channels:[], channelCountry:"in",
+  category:"all", q:"", wisdomTrad:"all", bookColl:"gutenberg",
+  playing:-1, srcIdx:0, hls:null, list:[], news:[]
+};
+
+/* ================= ROUTER ================= */
+function go(v){
+  S.view = v;
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  document.querySelectorAll(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
+  location.hash = "#/" + v;
+  window.scrollTo({ top:0, behavior:"instant" });
+}
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => go(b.dataset.v));
+
+/* ================= COUNTRIES / CLOCK ================= */
+const COUNTRY_FALLBACK = `in|India|🇮🇳|New Delhi|Asia,us|United States|🇺🇸|Washington, D.C.|Americas,gb|United Kingdom|🇬🇧|London|Europe,ae|UAE|🇦🇪|Abu Dhabi|Asia,sa|Saudi Arabia|🇸🇦|Riyadh|Asia,pk|Pakistan|🇵🇰|Islamabad|Asia,bd|Bangladesh|🇧🇩|Dhaka|Asia,lk|Sri Lanka|🇱🇰|Colombo|Asia,np|Nepal|🇳🇵|Kathmandu|Asia,cn|China|🇨🇳|Beijing|Asia,jp|Japan|🇯🇵|Tokyo|Asia,kr|South Korea|🇰🇷|Seoul|Asia,id|Indonesia|🇮🇩|Jakarta|Asia,my|Malaysia|🇲🇾|Kuala Lumpur|Asia,sg|Singapore|🇸🇬|Singapore|Asia,th|Thailand|🇹🇭|Bangkok|Asia,vn|Vietnam|🇻🇳|Hanoi|Asia,ph|Philippines|🇵🇭|Manila|Asia,au|Australia|🇦🇺|Canberra|Oceania,nz|New Zealand|🇳🇿|Wellington|Oceania,de|Germany|🇩🇪|Berlin|Europe,fr|France|🇫🇷|Paris|Europe,es|Spain|🇪🇸|Madrid|Europe,it|Italy|🇮🇹|Rome|Europe,nl|Netherlands|🇳🇱|Amsterdam|Europe,ru|Russia|🇷🇺|Moscow|Europe,tr|Türkiye|🇹🇷|Ankara|Asia,ir|Iran|🇮🇷|Tehran|Asia,il|Israel|🇮🇱|Jerusalem|Asia,eg|Egypt|🇪🇬|Cairo|Africa,ng|Nigeria|🇳🇬|Abuja|Africa,ke|Kenya|🇰🇪|Nairobi|Africa,za|South Africa|🇿🇦|Pretoria|Africa,br|Brazil|🇧🇷|Brasília|Americas,mx|Mexico|🇲🇽|Mexico City|Americas,ca|Canada|🇨🇦|Ottawa|Americas,ar|Argentina|🇦🇷|Buenos Aires|Americas`;
+
+function fallbackCountries(){
+  return COUNTRY_FALLBACK.split(",").map(s => {
+    const [code, name, flag, capital, region] = s.split("|");
+    return { code, name, flag, capital, region, languages: [], tz: "" };
+  });
+}
+
+async function loadCountries(){
+  S.countries = fallbackCountries();
+  renderCountrySelect(); renderClock(); renderAtlas();
+  try{
+    const data = await jget("https://restcountries.com/v3.1/all?fields=name,cca2,capital,region,subregion,languages,timezones,flag,population");
+    if (!Array.isArray(data) || !data.length) throw 0;
+    S.countries = data.filter(c => c.cca2).map(c => ({
+      code: c.cca2.toLowerCase(),
+      name: c.name?.common || c.cca2,
+      flag: c.flag || "",
+      capital: (c.capital && c.capital[0]) || "—",
+      region: c.region || "—",
+      subregion: c.subregion || "",
+      languages: c.languages ? Object.values(c.languages) : [],
+      tz: (c.timezones && c.timezones[0]) || "",
+      population: c.population || 0
+    })).sort((a,b) => a.name.localeCompare(b.name));
+    const inIdx = S.countries.findIndex(c => c.code === "in");
+    if (inIdx > 0){ const [x] = S.countries.splice(inIdx,1); S.countries.unshift(x); }
+  }catch(e){ /* fallback list stands */ }
+  renderCountrySelect(); renderClock(); renderAtlas();
+  $("stCountries").textContent = S.countries.length;
+}
+
+function localTime(tz){
+  if (!tz) return "—";
+  try{
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: tz, hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false
+    }).format(new Date());
+  }catch(e){ return "—"; }
+}
+
+function renderCountrySelect(){
+  const sel = $("country");
+  if (!sel) return;
+  sel.innerHTML = "";
+  S.countries.forEach(c => {
+    const o = document.createElement("option");
+    o.value = c.code;
+    o.textContent = (c.flag ? c.flag + " " : "") + c.name;
+    sel.appendChild(o);
+  });
+  sel.value = S.channelCountry;
+}
+
+function renderClock(){
+  const box = $("homeClock");
+  if (!box) return;
+  const picks = ["in","us","gb","jp","ae","za","br","au","de","sg","eg","ca"]
+    .map(code => S.countries.find(c => c.code === code)).filter(Boolean);
+  box.innerHTML = picks.map(c => `
+    <div class="card"><div class="body">
+      <h3>${c.flag || "🌐"} ${esc(c.name)}</h3>
+      <p>${esc(c.capital)} · ${esc(c.region)}</p>
+      <div style="font-size:20px;font-variant-numeric:tabular-nums;color:var(--accent)"
+           data-tz="${esc(c.tz)}">${localTime(c.tz)}</div>
+    </div></div>`).join("");
+}
+
+setInterval(() => {
+  document.querySelectorAll("[data-tz]").forEach(el => { el.textContent = localTime(el.dataset.tz); });
+  const cl = $("stClock");
+  if (cl) cl.textContent = new Date().toLocaleTimeString("en-GB", { hour12:false });
+}, 1000);
+
+/* ================= MEDIA (preserved engine) ================= */
+const MIRRORS = [
+  cc => `https://iptv-org.github.io/iptv/countries/${cc}.m3u`,
+  cc => `https://cdn.jsdelivr.net/gh/iptv-org/iptv@master/streams/${cc}.m3u`,
+  cc => `https://raw.githubusercontent.com/iptv-org/iptv/master/streams/${cc}.m3u`
+];
+
+const CAT_RULES = [
+  ["news", /\b(news|samachar|khabar|24x7|bulletin|current|report)\b/i],
+  ["sports", /\b(sport|cricket|football|soccer|tennis|golf|nba|nfl|fifa|olympic|kabaddi|espn)\b/i],
+  ["movies", /\b(movie|cinema|film|pictures|talkies|max|goldmines)\b/i],
+  ["music", /\b(music|mtv|vh1|hits|songs|fm|radio|beats|9xm|mastiii)\b/i],
+  ["kids", /\b(kids|cartoon|toon|pogo|nick|disney|baby|junior|chhota)\b/i],
+  ["religious", /\b(bhakti|devotional|aastha|sanskar|shubh|islam|quran|christ|gospel|temple|mandir|church|darshan|satlok|sadhna)\b/i],
+  ["documentary", /\b(docu|discovery|history|nat ?geo|explore|wild|animal|earth|science)\b/i],
+  ["education", /\b(education|gyan|vidya|vyas|swayam|learn|school|university|knowledge)\b/i],
+  ["business", /\b(business|market|money|finance|cnbc|bloomberg|trade|bazaar|economy)\b/i],
+  ["government", /\b(sansad|parliament|lok ?sabha|rajya ?sabha|assembly|govt|government|doordarshan)\b/i],
+  ["entertainment", /\b(tv|channel|entertainment|serial|drama|comedy|star|zee|sony|colors|sun)\b/i]
+];
+const CAT_LABEL = { all:"All", news:"News", sports:"Sports", movies:"Movies", music:"Music",
+  kids:"Kids", religious:"Religious", documentary:"Documentary", education:"Education",
+  business:"Business", government:"Government", entertainment:"Entertainment", general:"General" };
+
+function classify(n){ for (const [c,re] of CAT_RULES) if (re.test(n)) return c; return "general"; }
+
+function parseM3U(text){
+  const out = [], map = new Map(), lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++){
+    if (!lines[i].startsWith("#EXTINF")) continue;
+    const url = (lines[i+1] || "").trim();
+    if (!/^https?:\/\//i.test(url)) continue;
+    const idm = lines[i].match(/tvg-id="([^"]*)"/);
+    const logo = lines[i].match(/tvg-logo="([^"]*)"/);
+    const name = (lines[i].split(",").slice(1).join(",") || "").trim();
+    if (!name) continue;
+    const base = (idm ? idm[1] : name).split("@")[0] || name;
+    if (map.has(base)){ const e = map.get(base); if (!e.urls.includes(url)) e.urls.push(url); continue; }
+    const qm = name.match(/\((\d{3,4}p)\)/);
+    const entry = { id:base, name:name.replace(/\s*\(\d{3,4}p\)\s*$/i,"").trim(),
+      logo: logo ? logo[1] : "", quality: qm ? qm[1] : "", cat: classify(name), urls:[url] };
+    map.set(base, entry); out.push(entry);
+  }
+  return out;
+}
+
+async function loadChannels(cc, force){
+  const key = "ow:m:" + cc;
+  if (!force){
+    try{
+      const c = JSON.parse(localStorage.getItem(key) || "null");
+      if (c && Date.now() - c.t < 30*60*1000){ S.channels = c.d; renderMedia(); return; }
+    }catch(e){}
+  }
+  $("mgrid").innerHTML = '<div class="empty">Loading channels…</div>';
+  for (const mk of MIRRORS){
+    try{
+      const txt = await tget(mk(cc));
+      const list = parseM3U(txt);
+      if (!list.length) continue;
+      S.channels = list;
+      localStorage.setItem(key, JSON.stringify({ t:Date.now(), d:list }));
+      renderMedia();
+      $("stChannels").textContent = list.length;
+      return;
+    }catch(e){}
+  }
+  $("mgrid").innerHTML = "";
+  $("mempty").style.display = "block";
+  $("mempty").innerHTML = "Could not reach the channel index.<br>Mirrors tried: iptv-org, jsDelivr, raw.githubusercontent.";
+}
+
+function renderChips(){
+  const counts = {};
+  S.channels.forEach(c => counts[c.cat] = (counts[c.cat] || 0) + 1);
+  const order = ["all", ...Object.keys(counts).sort((a,b) => counts[b]-counts[a])];
+  $("chips").innerHTML = order.map(cat => {
+    if (cat !== "all" && !counts[cat]) return "";
+    const n = cat === "all" ? S.channels.length : counts[cat];
+    return `<button class="chip ${S.category===cat?"on":""}" data-cat="${cat}">${CAT_LABEL[cat]||cat} · ${n}</button>`;
+  }).join("");
+  $("chips").querySelectorAll(".chip").forEach(b => b.onclick = () => {
+    S.category = b.dataset.cat; renderChips(); renderMedia();
+  });
+}
+
+function filteredChannels(){
+  const q = S.q.toLowerCase();
+  return S.channels.filter(c =>
+    (S.category === "all" || c.cat === S.category) &&
+    (!q || c.name.toLowerCase().includes(q)));
+}
+
+function renderMedia(){
+  renderChips();
+  const items = filteredChannels();
+  const grid = $("mgrid");
+  $("mempty").style.display = items.length ? "none" : "block";
+  if (!items.length){ $("mempty").textContent = "No channels match this filter."; grid.innerHTML = ""; return; }
+  grid.innerHTML = items.map((ch, i) => `
+    <div class="tile" data-i="${i}">
+      <div class="thumb">
+        ${ch.logo ? `<img loading="lazy" src="${esc(ch.logo)}" alt="">` : `<span class="ini">${esc(ch.name.slice(0,2).toUpperCase())}</span>`}
+        ${ch.quality ? `<span class="qual">${esc(ch.quality)}</span>` : ""}
+      </div>
+      <div class="tinfo">
+        <div class="tname">${esc(ch.name)}</div>
+        <div class="tmeta">${CAT_LABEL[ch.cat]||ch.cat} · ${ch.urls.length} src</div>
+      </div>
+    </div>`).join("");
+  grid.querySelectorAll(".tile").forEach(t => t.onclick = () => openPlayer(+t.dataset.i));
+}
+
+/* ---------- player ---------- */
+function pStatus(msg, err){
+  const el = $("pstatus");
+  el.className = "pstatus" + (err ? " err" : "");
+  el.innerHTML = "<b>" + (err ? "✕" : "●") + "</b> " + esc(msg);
+}
+function hostOf(u){ try{ return new URL(u).hostname.replace(/^www\./,""); }catch(e){ return "source"; } }
+
+function openPlayer(i){
+  S.list = filteredChannels();
+  if (!S.list[i]) return;
+  S.playing = i; S.srcIdx = 0;
+  const ch = S.list[i];
+  $("pname").textContent = ch.name;
+  const c = S.countries.find(x => x.code === S.channelCountry);
+  $("psub").textContent = (CAT_LABEL[ch.cat]||ch.cat) + " · " + (c ? c.name : S.channelCountry);
+  $("overlay").classList.add("open");
+  playSource(ch);
+}
+
+function playSource(ch){
+  const v = $("pvideo");
+  const url = ch.urls[S.srcIdx];
+  if (S.hls){ S.hls.destroy(); S.hls = null; }
+  v.removeAttribute("src");
+  if (!url){ toast("“" + ch.name + "” failed on every source — trying next"); advance(1); return; }
+  pStatus("connecting… source " + (S.srcIdx+1) + "/" + ch.urls.length + " · " + hostOf(url));
+
+  const native = v.canPlayType("application/vnd.apple.mpegurl");
+  if (window.Hls && Hls.isSupported()){
+    const hls = new Hls({ enableWorker:true, lowLatencyMode:true, manifestLoadingTimeOut:12000 });
+    S.hls = hls;
+    hls.loadSource(url); hls.attachMedia(v);
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      pStatus("live · source " + (S.srcIdx+1) + "/" + ch.urls.length);
+      v.play().catch(() => {});
+    });
+    hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal) nextSource(d.details || "error"); });
+  } else if (native){
+    v.src = url;
+    v.addEventListener("loadedmetadata", () => { pStatus("live"); v.play().catch(() => {}); }, { once:true });
+    v.addEventListener("error", () => nextSource("native error"), { once:true });
+  } else pStatus("HLS not supported in this browser", true);
+}
+
+function nextSource(reason){
+  const ch = S.list[S.playing]; if (!ch) return;
+  pStatus(reason + " — switching source", true);
+  S.srcIdx++; setTimeout(() => playSource(ch), 350);
+}
+
+function advance(dir){
+  const i = Math.max(0, Math.min(S.list.length - 1, S.playing + dir));
+  S.playing = i; S.srcIdx = 0;
+  const ch = S.list[i]; if (!ch) return;
+  $("pname").textContent = ch.name;
+  playSource(ch);
+}
+
+function closePlayer(){
+  $("overlay").classList.remove("open");
+  if (S.hls){ S.hls.destroy(); S.hls = null; }
+  const v = $("pvideo"); v.pause(); v.removeAttribute("src"); v.load();
+  if ("speechSynthesis" in window) speechSynthesis.cancel();
+}
+
+/* ================= NEWS ================= */
+const FEEDS = [
+  { r:"world", n:"BBC World", u:"https://feeds.bbci.co.uk/news/world/rss.xml" },
+  { r:"world", n:"Al Jazeera", u:"https://www.aljazeera.com/xml/rss/all.xml" },
+  { r:"world", n:"DW", u:"https://rss.dw.com/rdf/rss-en-all" },
+  { r:"world", n:"France 24", u:"https://www.france24.com/en/rss" },
+  { r:"world", n:"The Guardian", u:"https://www.theguardian.com/world/rss" },
+  { r:"in", n:"The Hindu", u:"https://www.thehindu.com/news/national/feeder/default.rss" },
+  { r:"in", n:"Indian Express", u:"https://indianexpress.com/section/india/feed/" },
+  { r:"in", n:"NDTV India", u:"https://feeds.feedburner.com/ndtvnews-india-news" },
+  { r:"science", n:"ScienceDaily", u:"https://www.sciencedaily.com/rss/top/science.xml" },
+  { r:"science", n:"Nature", u:"https://www.nature.com/nature.rss" },
+  { r:"science", n:"NASA", u:"https://www.nasa.gov/rss/dyn/breaking_news.rss" },
+  { r:"science", n:"Space.com", u:"https://www.space.com/feeds/all" },
+  { r:"business", n:"Economic Times", u:"https://economictimes.indiatimes.com/rssfeedstopstories.cms" },
+  { r:"environment", n:"Guardian Environment", u:"https://www.theguardian.com/environment/rss" },
+  { r:"environment", n:"Mongabay", u:"https://news.mongabay.com/feed/" }
+];
+
+function parseRSS(xml, feedName, region){
+  const doc = new DOMParser().parseFromString(xml, "text/xml");
+  const items = [...doc.querySelectorAll("item")].slice(0, 6);
+  return items.map(it => {
+    const title = it.querySelector("title")?.textContent?.trim() || "";
+    const link = it.querySelector("link")?.textContent?.trim() || "#";
+    const date = it.querySelector("pubDate")?.textContent || it.querySelector("date")?.textContent || "";
+    const desc = (it.querySelector("description")?.textContent || "").replace(/<[^>]+>/g," ").trim().slice(0,160);
+    let when = "";
+    if (date){ const d = new Date(date); if (!isNaN(d)) when = d.toLocaleString("en-GB",{ dateStyle:"medium", timeStyle:"short" }); }
+    return { title, link, when, desc, feed:feedName, region };
+  }).filter(x => x.title);
+}
+
+async function loadNews(){
+  $("newsStatus").textContent = "loading feeds…";
+  const region = $("newsRegion").value;
+  const feeds = region === "all" ? FEEDS : FEEDS.filter(f => f.r === region);
+  const results = await Promise.all(feeds.map(async f => {
+    try { return parseRSS(await fetchAny(f.u, { timeout:12000 }), f.n, f.r); }
+    catch(e){ return []; }
+  }));
+  S.news = results.flat().sort(() => Math.random() - 0.5);
+  $("newsStatus").textContent = S.news.length ? S.news.length + " headlines" : "feeds unreachable right now";
+  renderNews(); renderTicker();
+}
+
+function renderNews(){
+  $("newsgrid").innerHTML = S.news.slice(0, 40).map(n => `
+    <div class="card"><div class="body">
+      <h3><a href="${esc(n.link)}" target="_blank" rel="noopener noreferrer">${esc(n.title)}</a></h3>
+      ${n.desc ? `<p>${esc(n.desc)}…</p>` : ""}
+      <div class="tagrow"><span class="pill">${esc(n.feed)}</span><span class="pill">${esc(n.when || "—")}</span></div>
+    </div></div>`).join("");
+}
+
+function renderTicker(){
+  const t = $("tick");
+  if (!S.news.length){ t.textContent = "headlines unavailable"; return; }
+  let i = 0;
+  const show = () => {
+    const n = S.news[i % S.news.length];
+    t.innerHTML = `<a href="${esc(n.link)}" target="_blank" rel="noopener">${esc(n.title)}</a>
+      <span style="color:#54677f"> — ${esc(n.feed)}</span>`;
+    i++;
+  };
+  show();
+  clearInterval(renderTicker._t);
+  renderTicker._t = setInterval(show, 7000);
+}
+
+/* ================= LIBRARY ================= */
+async function searchBooks(){
+  const q = $("bq").value.trim() || "philosophy";
+  const lang = $("blang").value;
+  const grid = $("bgrid");
+  $("bempty").style.display = "none";
+  grid.innerHTML = '<div class="empty">Searching…</div>';
+
+  try{
+    if (S.bookColl === "gutenberg"){
+      const data = await jget(`https://gutendex.com/books/?search=${encodeURIComponent(q)}${lang?"&languages="+lang:""}`);
+      const books = data.results || [];
+      if (!books.length){ grid.innerHTML = ""; $("bempty").style.display = "block";
+        $("bempty").textContent = "No public-domain matches. Try another title or author."; return; }
+      grid.innerHTML = books.slice(0, 24).map(b => {
+        const f = b.formats || {};
+        const cover = f["image/jpeg"] || "";
+        const epub = f["application/epub+zip"] || "";
+        const txt = f["text/plain; charset=utf-8"] || f["text/plain"] || "";
+        const html = f["text/html"] || "";
+        const authors = (b.authors || []).map(a => a.name).join(", ") || "Unknown";
+        return `<div class="card">
+          ${cover ? `<img src="${esc(cover)}" alt="" loading="lazy" style="width:100%;height:150px;object-fit:contain;background:#0a111c">` : ""}
+          <div class="body">
+            <h3>${esc(b.title)}</h3>
+            <p>${esc(authors)}${b.authors?.[0]?.birth_year ? ` · ${b.authors[0].birth_year}–${b.authors[0].death_year||""}` : ""}</p>
+            <div class="tagrow"><span class="pill">Gutenberg #${b.id}</span>
+              ${lang ? "" : `<span class="pill">${esc((b.languages||[]).join(", "))}</span>`}</div>
+            <div class="tagrow">
+              <a class="pill" href="https://www.gutenberg.org/ebooks/${b.id}" target="_blank" rel="noopener">Read</a>
+              ${epub ? `<a class="pill" href="${esc(epub)}">EPUB</a>` : ""}
+              ${txt ? `<a class="pill" href="${esc(txt)}">TXT</a>` : ""}
+              ${html ? `<a class="pill" href="${esc(html)}">HTML</a>` : ""}
+            </div>
+          </div></div>`;
+      }).join("");
+    }
+
+    if (S.bookColl === "openlibrary"){
+      const data = await jget(`https://openlibrary.org/search.json?q=${encodeURIComponent(q)}&limit=24${lang?"&language="+lang:""}`);
+      const docs = data.docs || [];
+      grid.innerHTML = docs.map(d => `
+        <div class="card">
+          ${d.cover_i ? `<img src="https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg" alt="" loading="lazy" style="width:100%;height:150px;object-fit:contain;background:#0a111c">` : ""}
+          <div class="body">
+            <h3>${esc(d.title)}</h3>
+            <p>${esc((d.author_name||[]).slice(0,2).join(", ") || "Unknown")}${d.first_publish_year ? " · " + d.first_publish_year : ""}</p>
+            <div class="tagrow">
+              <a class="pill" href="https://openlibrary.org${esc(d.key)}" target="_blank" rel="noopener">Open Library</a>
+              ${d.ia?.[0] ? `<a class="pill" href="https://archive.org/details/${esc(d.ia[0])}" target="_blank" rel="noopener">Archive copy</a>` : ""}
+            </div>
+          </div></div>`).join("") ||
+        '<div class="empty">No matches.</div>';
+    }
+
+    if (S.bookColl === "archive"){
+      const url = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(q + " AND mediatype:texts")}&fl[]=identifier&fl[]=title&fl[]=creator&fl[]=year&rows=24&page=1&output=json`;
+      const data = await jget(url);
+      const docs = data?.response?.docs || [];
+      grid.innerHTML = docs.map(d => `
+        <div class="card"><div class="body">
+          <h3>${esc(d.title || d.identifier)}</h3>
+          <p>${esc(d.creator || "Unknown")}${d.year ? " · " + esc(d.year) : ""}</p>
+          <div class="tagrow">
+            <a class="pill" href="https://archive.org/details/${esc(d.identifier)}" target="_blank" rel="noopener">Borrow / Read</a>
+          </div>
+        </div></div>`).join("") || '<div class="empty">No matches.</div>';
+    }
+  }catch(e){
+    grid.innerHTML = "";
+    $("bempty").style.display = "block";
+    $("bempty").textContent = "That source is unreachable right now — try another collection.";
+  }
+}
+
+/* ================= WISDOM ================= */
+const WISDOM = [
+  { trad:"Hinduism", src:"Bhagavad Gītā", ref:"2.47",
+    orig:"कर्मण्येवाधिकारस्ते मा फलेषु कदाचन ।\nमा कर्मफलहेतुर्भूर्मा ते सङ्गोऽस्त्वकर्मणि ॥",
+    translit:"karmaṇy evādhikāras te mā phaleṣu kadācana / mā karmaphalahetur bhūr mā te saṅgo 'stvakarmaṇi",
+    en:"Your right is to action alone, never to its fruits. Do not let the fruits be your motive, and do not be attached to inaction.",
+    hi:"तेरा अधिकार केवल कर्म में है, फल में कभी नहीं। फल को हेतु मत बना, और अकर्म में भी आसक्त मत हो।",
+    note:"The classic statement of nishkāma karma — action without attachment to outcome. Commentators differ on whether it forbids desire or only attachment to it.",
+    link:"https://www.holy-bhagavad-gita.org/chapter/2/verse/47", topic:"Ethics · Action" },
+
+  { trad:"Hinduism", src:"Īśa Upaniṣad", ref:"Verse 1",
+    orig:"ईशावास्यमिदं सर्वं यत्किञ्च जगत्यां जगत् ।",
+    translit:"īśāvāsyam idaṃ sarvaṃ yat kiñca jagatyāṃ jagat",
+    en:"All this — whatever moves in this moving world — is pervaded by the Lord.",
+    hi:"इस गतिशील जगत में जो कुछ भी है, वह सब ईश्वर से व्याप्त है।",
+    note:"Opens the shortest of the principal Upaniṣads; the basis of the idea that renunciation and enjoyment are not opposites.",
+    link:"https://www.wisdomlib.org/hinduism/book/isa-upanishad", topic:"Nature · Reality" },
+
+  { trad:"Hinduism", src:"Ṛgveda", ref:"1.164.46",
+    orig:"एकं सद्विप्रा बहुधा वदन्ति ।",
+    translit:"ekaṃ sad viprā bahudhā vadanti",
+    en:"Truth is one; the wise speak of it in many ways.",
+    hi:"सत्य एक है; विद्वान उसे अनेक प्रकार से कहते हैं।",
+    note:"Often quoted on pluralism. Read in context it concerns the naming of the one reality by poets, not a general statement about all religions.",
+    link:"https://www.wisdomlib.org/hinduism/book/rig-veda-english-translation", topic:"Reality · Language" },
+
+  { trad:"Hinduism", src:"Chāndogya Upaniṣad", ref:"6.8.7",
+    orig:"तत्त्वमसि ।",
+    translit:"tat tvam asi",
+    en:"That thou art.",
+    hi:"वह तुम हो।",
+    note:"One of the four mahāvākyas. Interpreted very differently by Advaita, Viśiṣṭādvaita and Dvaita schools — the translation is stable, the metaphysics is not.",
+    link:"https://www.wisdomlib.org/hinduism/book/chandogya-upanishad-english", topic:"Self · Consciousness" },
+
+  { trad:"Hinduism", src:"Yoga Sūtra", ref:"1.2",
+    orig:"योगश्चित्तवृत्तिनिरोधः ।",
+    translit:"yogaś citta-vṛtti-nirodhaḥ",
+    en:"Yoga is the settling of the movements of the mind.",
+    hi:"योग चित्त की वृत्तियों का शमन है।",
+    note:"Patañjali's definition. 'Nirodha' is rendered as suppression, stilling or cessation depending on the commentator.",
+    link:"https://www.wisdomlib.org/hinduism/book/yoga-sutras", topic:"Mind · Psychology" },
+
+  { trad:"Hinduism", src:"Bṛhadāraṇyaka Upaniṣad", ref:"1.3.28",
+    orig:"असतो मा सद्गमय । तमसो मा ज्योतिर्गमय । मृत्योर्मा अमृतं गमय ॥",
+    translit:"asato mā sad gamaya / tamaso mā jyotir gamaya / mṛtyor mā amṛtaṃ gamaya",
+    en:"Lead me from the unreal to the real; from darkness to light; from death to immortality.",
+    hi:"असत् से सत् की ओर ले चल; अंधकार से प्रकाश की ओर; मृत्यु से अमरता की ओर।",
+    note:"The śānti mantra of the Upaniṣads — a prayer for knowledge, not for goods.",
+    link:"https://www.wisdomlib.org/hinduism/book/brihadaranyaka-upanishad", topic:"Knowledge · Liberation" },
+
+  { trad:"Jainism", src:"Tattvārtha Sūtra", ref:"1.1",
+    orig:"सम्यग्दर्शनज्ञानचारित्राणि मोक्षमार्गः ।",
+    translit:"samyag-darśana-jñāna-cāritrāṇi mokṣa-mārgaḥ",
+    en:"Right faith, right knowledge and right conduct together are the path to liberation.",
+    hi:"सम्यक् दर्शन, सम्यक् ज्ञान और सम्यक् चारित्र — ये तीनों मिलकर मोक्ष का मार्ग हैं।",
+    note:"The opening sūtra of Umāsvāti's Tattvārtha Sūtra, the root text of Jain philosophy. The three are held to be simultaneous, not sequential.",
+    link:"https://www.wisdomlib.org/jainism/book/tattvartha-sutra", topic:"Ethics · Liberation" },
+
+  { trad:"Jainism", src:"Tattvārtha Sūtra", ref:"5.21",
+    orig:"परस्परोपग्रहो जीवानाम् ।",
+    translit:"parasparopagraho jīvānām",
+    en:"Living beings exist for one another — they support each other.",
+    hi:"जीव एक-दूसरे के सहयोग से जीते हैं।",
+    note:"A compact statement of interdependence; it grounds Jain ecology and the doctrine of non-harm.",
+    link:"https://www.wisdomlib.org/jainism/book/tattvartha-sutra", topic:"Nature · Ethics" },
+
+  { trad:"Jainism", src:"Jain philosophical tradition", ref:"doctrine of anekāntavāda",
+    orig:"अनेकान्तवाद",
+    translit:"anekāntavāda",
+    en:"The doctrine of many-sidedness: reality has many aspects, and every assertion is true from some standpoint and incomplete from others.",
+    hi:"अनेकांतवाद: वस्तु में अनेक पक्ष होते हैं; कोई भी कथन किसी दृष्टि से सत्य और किसी से अपूर्ण है।",
+    note:"A doctrine rather than a verse, so no chapter reference is given. It underlies syādvāda, the seven-fold predication, and Jain logic.",
+    link:"https://www.wisdomlib.org/jainism/book/tattvartha-sutra", topic:"Logic · Knowledge" },
+
+  { trad:"Sikhism", src:"Guru Granth Sahib", ref:"p. 1 — Mūl Mantar (Japjī Sāhib)",
+    orig:"ੴ ਸਤਿ ਨਾਮੁ ਕਰਤਾ ਪੁਰਖੁ ਨਿਰਭਉ ਨਿਰਵੈਰੁ ਅਕਾਲ ਮੂਰਤਿ ਅਜੂਨੀ ਸੈਭੰ ਗੁਰ ਪ੍ਰਸਾਦਿ ॥",
+    translit:"ik oaṅkār sat nām kartā purakh nirbhau nirvair akāl mūrat ajūnī saibhaṅ gur prasād",
+    en:"One Universal Creator. Truth is the Name. Creative Being, without fear, without hate, timeless in form, beyond birth, self-existent — known by the Guru's grace.",
+    hi:"एक ओंकार। सत्य ही नाम है। कर्ता, निर्भय, निर्वैर, अकाल मूर्ति, अजूनी, स्वयंभू — गुरु की कृपा से जाना जाता है।",
+    note:"The opening formula of the Guru Granth Sahib. It functions as a creed rather than a verse, and is recited at the start of most Sikh prayers.",
+    link:"https://www.srigranth.org/servlet/gurbani.gurbani?Action=Page&Param=1", topic:"Theology · Reality" },
+
+  { trad:"Sikhism", src:"Japjī Sāhib", ref:"Paurī 1",
+    orig:"ਸੋਚੈ ਸੋਚਿ ਨ ਹੋਵਈ ਜੇ ਸੋਚੀ ਲਖ ਵਾਰ ॥",
+    translit:"sochai soch na hovaī je sochī lakh vār",
+    en:"By thinking, He cannot be reduced to thought, even if one thinks a hundred thousand times.",
+    hi:"सोचने से वह नहीं सोचा जाता, चाहे लाख बार सोचो।",
+    note:"Opens the first paurī: the divine is not an object of calculation — hence the emphasis on lived remembrance over speculation.",
+    link:"https://www.srigranth.org/servlet/gurbani.gurbani?Action=Page&Param=1", topic:"Knowledge · Devotion" },
+
+  { trad:"Sikhism", src:"Guru Granth Sahib (Bhagat Kabīr)", ref:"p. 441",
+    orig:"ਮਨ ਤੂੰ ਜੋਤਿ ਸਰੂਪੁ ਹੈ ਆਪਣਾ ਮੂਲੁ ਪਛਾਣੁ ॥",
+    translit:"man tūṅ jot sarūp hai āpaṇā mūl pachhāṇ",
+    en:"O mind, you are the very image of light — recognise your own origin.",
+    hi:"हे मन, तू ज्योति का स्वरूप है — अपना मूल पहचान।",
+    note:"A line of Bhagat Kabīr preserved in the Sikh scripture; the theme of self-recognition runs across the Sant tradition.",
+    link:"https://www.srigranth.org/servlet/gurbani.gurbani?Action=Page&Param=441", topic:"Self · Consciousness" }
+];
+
+function dayIndex(len){
+  const d = new Date();
+  const seed = d.getFullYear()*10000 + (d.getMonth()+1)*100 + d.getDate();
+  return seed % len;
+}
+
+function wisdomCard(w, showAll){
+  return `<div class="wisdom">
+    <div class="trad">${esc(w.trad)} · ${esc(w.topic || "")}</div>
+    <div class="orig" style="white-space:pre-line">${esc(w.orig)}</div>
+    <div class="translit">${esc(w.translit)}</div>
+    <div class="en">${esc(w.en)}</div>
+    <div class="hi">${esc(w.hi)}</div>
+    <div class="ref">
+      <b style="color:var(--text)">${esc(w.src)} ${esc(w.ref)}</b><br>
+      ${esc(w.note)}
+      ${showAll ? `<br><a href="${esc(w.link)}" target="_blank" rel="noopener">Verify against a scholarly edition ↗</a>` : ""}
+    </div>
+  </div>`;
+}
+
+function renderWisdom(){
+  const list = S.wisdomTrad === "all" ? WISDOM : WISDOM.filter(w => w.trad === S.wisdomTrad);
+  const day = list[dayIndex(list.length)];
+  $("homeWisdom").innerHTML = wisdomCard(day, false);
+  $("wDaily").innerHTML = wisdomCard(day, true);
+
+  const counts = {};
+  WISDOM.forEach(w => counts[w.trad] = (counts[w.trad]||0)+1);
+  $("wchips").innerHTML =
+    `<button class="chip ${S.wisdomTrad==="all"?"on":""}" data-t="all">All · ${WISDOM.length}</button>` +
+    Object.keys(counts).map(t =>
+      `<button class="chip ${S.wisdomTrad===t?"on":""}" data-t="${t}">${t} · ${counts[t]}</button>`).join("");
+  $("wchips").querySelectorAll(".chip").forEach(b => b.onclick = () => {
+    S.wisdomTrad = b.dataset.t; renderWisdom();
+  });
+
+  $("wgrid").innerHTML = list.map(w => `
+    <div class="card"><div class="body">
+      <h3>${esc(w.src)} <span class="small muted">${esc(w.ref)}</span></h3>
+      <p style="font-size:13px;color:#e6d9bd;white-space:pre-line">${esc(w.orig)}</p>
+      <p>${esc(w.en)}</p>
+      <div class="tagrow"><span class="pill">${esc(w.trad)}</span><span class="pill">${esc(w.topic||"")}</span></div>
+      <a class="pill" href="${esc(w.link)}" target="_blank" rel="noopener">Source ↗</a>
+    </div></div>`).join("");
+
+  const comparisons = [
+    ["What is consciousness?", "Advaita holds pure awareness as the ground of reality; Jainism treats consciousness (jīva) as an eternal, individual substance among many; Sikh thought places the remembering mind within a single creative principle."],
+    ["What is the self?", "Hindu Vedānta schools disagree sharply — Advaita denies a separate self, Sāṃkhya posits puruṣa as plural and distinct. Jainism affirms an individual jīva with karma adhering to it. Sikh teaching centres the self on nām and the Guru's word."],
+    ["What is liberation?", "Mokṣa as recognition of one's nature (Advaita); as isolation of puruṣa from prakṛti (Yoga/Sāṃkhya); as the soul's freedom from karmic matter (Jainism); as union through grace and remembrance (Sikh)."],
+    ["What is right action?", "Nishkāma karma — action without attachment to fruit (Gītā); ahiṃsā and the three jewels (Jainism); truthful living and seva within hukam (Sikh)."],
+    ["Knowledge and its limits?", "Śabda and inference as valid means (Nyāya); many-sidedness and standpoint-relativity (anekāntavāda, Jain); revealed word and lived practice over speculation (Sikh)."]
+  ];
+  $("wcompare").innerHTML = comparisons.map(([q,a]) => `
+    <div class="card"><div class="body">
+      <h3>${esc(q)}</h3><p>${esc(a)}</p>
+    </div></div>`).join("");
+}
+
+/* ================= SCIENCE ================= */
+const SLINKS = [
+  ["NASA Open APIs","https://api.nasa.gov/"],["NASA datasets","https://data.nasa.gov/"],
+  ["ESA open data","https://www.esa.int/Applications/Observing_the_Earth/Open_data"],
+  ["NOAA","https://www.noaa.gov/"],["USGS","https://www.usgs.gov/"],
+  ["World Bank Open Data","https://data.worldbank.org/"],
+  ["Our World in Data","https://ourworldindata.org/"],
+  ["OpenAlex","https://openalex.org/"],["Crossref","https://www.crossref.org/"],
+  ["PubMed","https://pubmed.ncbi.nlm.nih.gov/"],["Wikidata","https://www.wikidata.org/"],
+  ["ISRO","https://www.isro.gov.in/"],["arXiv","https://arxiv.org/"]
+];
+
+async function loadAPOD(){
+  const key = localStorage.getItem("ow:nasa") || "DEMO_KEY";
+  try{
+    const d = await jget(`https://api.nasa.gov/planetary/apod?api_key=${encodeURIComponent(key)}`);
+    $("apod").innerHTML = `
+      <div class="card">
+        ${d.media_type === "image" ? `<img src="${esc(d.url)}" alt="" style="width:100%;max-height:420px;object-fit:cover">` : ""}
+        <div class="body">
+          <h3>${esc(d.title)}</h3>
+          <p>${esc((d.explanation||"").slice(0,420))}…</p>
+          <div class="tagrow"><span class="pill">${esc(d.date||"")}</span><span class="pill">NASA APOD</span>
+            ${d.copyright ? `<span class="pill">${esc(d.copyright)}</span>` : ""}</div>
+          <a class="pill" href="${esc(d.hdurl||d.url)}" target="_blank" rel="noopener">Open full image ↗</a>
+        </div></div>`;
+  }catch(e){
+    $("apod").innerHTML = '<div class="empty">NASA APOD unreachable (rate-limited demo key). ' +
+      '<a href="https://apod.nasa.gov/" target="_blank" rel="noopener">Open apod.nasa.gov ↗</a></div>';
+  }
+}
+
+async function searchPapers(){
+  const q = $("sq").value.trim() || "astronomy";
+  $("sgrid").innerHTML = '<div class="empty">Searching OpenAlex…</div>';
+  try{
+    const d = await jget(`https://api.openalex.org/works?search=${encodeURIComponent(q)}&per-page=12&sort=relevance_score:desc`);
+    const works = d.results || [];
+    $("sgrid").innerHTML = works.map(w => `
+      <div class="card"><div class="body">
+        <h3><a href="${esc(w.id)}" target="_blank" rel="noopener">${esc(w.display_name || w.title || "Untitled")}</a></h3>
+        <p>${esc((w.authorships||[]).slice(0,3).map(a => a.author?.display_name).filter(Boolean).join(", ") || "—")}</p>
+        <div class="tagrow">
+          <span class="pill">${esc(w.publication_year || "—")}</span>
+          <span class="pill">${esc(w.primary_location?.source?.display_name || "OpenAlex")}</span>
+          ${w.open_access?.is_oa ? '<span class="pill" style="color:var(--ok)">Open access</span>' : ""}
+        </div>
+        ${w.doi ? `<a class="pill" href="${esc(w.doi)}" target="_blank" rel="noopener">DOI ↗</a>` : ""}
+      </div></div>`).join("") || '<div class="empty">No results.</div>';
+  }catch(e){ $("sgrid").innerHTML = '<div class="empty">OpenAlex unreachable right now.</div>'; }
+}
+
+function renderScienceLinks(){
+  $("slinks").innerHTML = SLINKS.map(([n,u]) => `
+    <div class="card"><div class="body">
+      <h3>${esc(n)}</h3>
+      <a class="pill" href="${esc(u)}" target="_blank" rel="noopener">Open ↗</a>
+    </div></div>`).join("");
+}
+
+/* ================= ATLAS ================= */
+function renderAtlas(){
+  const q = ($("aq")?.value || "").toLowerCase();
+  const reg = $("areg")?.value || "all";
+  const list = S.countries.filter(c =>
+    (reg === "all" || c.region === reg) &&
+    (!q || c.name.toLowerCase().includes(q) || (c.capital||"").toLowerCase().includes(q) ||
+      (c.languages||[]).join(" ").toLowerCase().includes(q)));
+  $("agrid").innerHTML = list.slice(0, 120).map(c => `
+    <div class="card"><div class="body">
+      <h3>${c.flag || "🌐"} ${esc(c.name)}</h3>
+      <p>Capital: ${esc(c.capital)} · ${esc(c.region)}</p>
+      <p>Languages: ${esc((c.languages||[]).slice(0,4).join(", ") || "—")}</p>
+      <div style="font-size:16px;font-variant-numeric:tabular-nums;color:var(--accent)"
+           data-tz="${esc(c.tz)}">${localTime(c.tz)}</div>
+      <button class="btn" data-cc="${c.code}">Open channels</button>
+    </div></div>`).join("");
+  $("agrid").querySelectorAll("[data-cc]").forEach(b => b.onclick = () => {
+    S.channelCountry = b.dataset.cc;
+    $("country").value = b.dataset.cc;
+    go("media"); loadChannels(b.dataset.cc, false);
+  });
+}
+
+/* ================= GLOBAL SEARCH ================= */
+async function globalSearch(){
+  const q = $("gq").value.trim();
+  if (!q) return;
+  const low = q.toLowerCase();
+  const countries = S.countries.filter(c =>
+    c.name.toLowerCase().includes(low) || (c.capital||"").toLowerCase().includes(low)).slice(0,6);
+  const chans = S.channels.filter(c => c.name.toLowerCase().includes(low)).slice(0,8);
+  const wis = WISDOM.filter(w =>
+    (w.src + " " + w.en + " " + w.topic + " " + w.trad).toLowerCase().includes(low)).slice(0,4);
+
+  go("home");
+  const box = $("homeNews");
+  box.innerHTML = `
+    <div class="card"><div class="body">
+      <h3>Countries (${countries.length})</h3>
+      <p>${countries.map(c => esc(c.flag + " " + c.name)).join(" · ") || "—"}</p>
+    </div></div>
+    <div class="card"><div class="body">
+      <h3>Channels in the loaded country (${chans.length})</h3>
+      <p>${chans.map(c => esc(c.name)).join(" · ") || "— try opening TV & Radio first"}</p>
+    </div></div>
+    <div class="card"><div class="body">
+      <h3>Wisdom archive (${wis.length})</h3>
+      <p>${wis.map(w => esc(w.src + " " + w.ref)).join(" · ") || "—"}</p>
+    </div></div>
+    <div class="card"><div class="body">
+      <h3>Books &amp; papers</h3>
+      <p>Searching Project Gutenberg and OpenAlex…</p>
+      <div id="gsBooks" class="small muted"></div>
+    </div></div>`;
+
+  try{
+    const g = await jget(`https://gutendex.com/books/?search=${encodeURIComponent(q)}`);
+    const b = (g.results || []).slice(0,5);
+    $("gsBooks").innerHTML = b.length
+      ? b.map(x => `<a href="https://www.gutenberg.org/ebooks/${x.id}" target="_blank" rel="noopener">${esc(x.title)}</a>`).join("<br>")
+      : "no Gutenberg matches";
+  }catch(e){ $("gsBooks").textContent = "Gutenberg unreachable"; }
+
+  try{
+    const p = await jget(`https://api.openalex.org/works?search=${encodeURIComponent(q)}&per-page=4`);
+    const works = p.results || [];
+    if (works.length){
+      $("gsBooks").innerHTML += "<br><br><b style='color:#cfe0f7'>OpenAlex papers</b><br>" +
+        works.map(w => `<a href="${esc(w.id)}" target="_blank" rel="noopener">${esc((w.display_name||"").slice(0,90))}</a>`).join("<br>");
+    }
+  }catch(e){}
+}
+
+/* ================= WIRING ================= */
+$("country").onchange = e => { S.channelCountry = e.target.value; loadChannels(e.target.value, false); };
+$("mq").oninput = e => { S.q = e.target.value.trim(); renderMedia(); };
+$("mRefresh").onclick = () => { toast("Refreshing index…", 1200); loadChannels(S.channelCountry, true); };
+
+$("newsRegion").onchange = () => loadNews();
+$("newsRefresh").onclick = () => loadNews();
+
+$("bSearch").onclick = () => searchBooks();
+$("bq").addEventListener("keydown", e => { if (e.key === "Enter") searchBooks(); });
+$("bPop").onclick = () => { $("bq").value = ""; searchBooks(); };
+document.querySelectorAll("[data-coll]").forEach(b => b.onclick = () => {
+  document.querySelectorAll("[data-coll]").forEach(x => x.classList.remove("on"));
+  b.classList.add("on");
+  S.bookColl = b.dataset.coll;
+  searchBooks();
+});
+
+$("sSearch").onclick = () => searchPapers();
+$("sq").addEventListener("keydown", e => { if (e.key === "Enter") searchPapers(); });
+
+$("aq") && ($("aq").oninput = renderAtlas);
+$("areg") && ($("areg").onchange = renderAtlas);
+
+$("gbtn").onclick = globalSearch;
+$("gq").addEventListener("keydown", e => { if (e.key === "Enter") globalSearch(); });
+
+$("closeBtn").onclick = closePlayer;
+$("nextBtn").onclick = () => advance(1);
+$("prevBtn").onclick = () => advance(-1);
+$("overlay").addEventListener("click", e => { if (e.target === $("overlay")) closePlayer(); });
+document.addEventListener("keydown", e => {
+  if (!$("overlay").classList.contains("open")) return;
+  if (e.key === "Escape") closePlayer();
+  if (e.key === "ArrowRight") advance(1);
+  if (e.key === "ArrowLeft") advance(-1);
+});
+
+/* ================= TRANSLATION LAYER (preserved) ================= */
+const LANGS = [["hi","Hindi"],["bn","Bengali"],["ta","Tamil"],["te","Telugu"],["mr","Marathi"],
+  ["gu","Gujarati"],["kn","Kannada"],["ml","Malayalam"],["pa","Punjabi"],["ur","Urdu"],["or","Odia"],
+  ["as","Assamese"],["en","English"],["es","Spanish"],["fr","French"],["de","German"],["pt","Portuguese"],
+  ["it","Italian"],["ru","Russian"],["ar","Arabic"],["zh","Chinese"],["ja","Japanese"],["ko","Korean"],
+  ["tr","Turkish"],["id","Indonesian"],["vi","Vietnamese"],["th","Thai"],["fa","Persian"],["sw","Swahili"],
+  ["nl","Dutch"],["pl","Polish"],["uk","Ukrainian"],["ne","Nepali"],["si","Sinhala"],["my","Burmese"]];
+
+const TL = { on:false, voice:false, target:"hi", busy:false, cache:new Map(),
+  lastSpoken:"", asr:null, ctx:null, proc:null, srcNode:null, buf:[], capturing:false };
+
+function setTStat(m){ $("tstat").textContent = m; }
+
+async function translate(text, to){
+  const key = to + "|" + text;
+  if (TL.cache.has(key)) return TL.cache.get(key);
+  const engines = [
+    async () => {
+      const r = await fetch(`https://lingva.ml/api/v1/auto/${to}/${encodeURIComponent(text)}`);
+      const j = await r.json(); if (!j.translation) throw 0; return j.translation;
+    },
+    async () => {
+      for (const b of ["https://translate.argosopentech.com","https://libretranslate.de"]){
+        try{
+          const r = await fetch(b + "/translate", { method:"POST",
+            headers:{ "Content-Type":"application/json" },
+            body: JSON.stringify({ q:text, source:"auto", target:to, format:"text" }) });
+          const j = await r.json(); if (j.translatedText) return j.translatedText;
+        }catch(e){}
+      }
+      throw 0;
+    },
+    async () => {
+      const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|${to}`);
+      const j = await r.json(); const t = j?.responseData?.translatedText;
+      if (!t || /MYMEMORY WARNING/i.test(t)) throw 0; return t;
+    }
+  ];
+  for (const fn of engines){
+    try{ const out = await fn(); if (out){ TL.cache.set(key,out); setTStat("translated"); return out; } }catch(e){}
+  }
+  setTStat("translate failed");
+  return null;
+}
+
+function showCaption(src, out){
+  const box = $("ccbox");
+  if (!TL.on){ box.innerHTML = ""; return; }
+  const d = document.createElement("div");
+  d.className = "ccline";
+  d.textContent = out || src;
+  if (out){ const s = document.createElement("span"); s.className = "src"; s.textContent = src; d.appendChild(s); }
+  box.innerHTML = ""; box.appendChild(d);
+  setTimeout(() => { if (box.firstChild === d) box.innerHTML = ""; }, 9000);
+}
+
+function speak(text){
+  if (!TL.voice || !text || text === TL.lastSpoken || !("speechSynthesis" in window)) return;
+  TL.lastSpoken = text;
+  try{
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = TL.target; u.rate = 1.05;
+    const v = speechSynthesis.getVoices().find(v => v.lang.toLowerCase().startsWith(TL.target));
+    if (v) u.voice = v;
+    speechSynthesis.speak(u);
+  }catch(e){}
+}
+
+async function handleLine(text){
+  if (!text || TL.busy) return;
+  const clean = text.replace(/\s+/g," ").trim();
+  if (clean.length < 2) return;
+  TL.busy = true;
+  try{
+    const out = await translate(clean, TL.target);
+    showCaption(clean, out);
+    if (out) speak(out);
+  } finally { TL.busy = false; }
+}
+
+function watchSubtitleTracks(){
+  const v = $("pvideo");
+  for (let i = 0; i < v.textTracks.length; i++){
+    const t = v.textTracks[i];
+    t.mode = "hidden";
+    if (t._hooked) continue;
+    t._hooked = true;
+    t.addEventListener("cuechange", () => {
+      if (!t.activeCues || !t.activeCues.length) return;
+      handleLine(Array.from(t.activeCues).map(c => c.text).join(" ").replace(/<[^>]+>/g," "));
+    });
+  }
+}
+
+async function startASR(){
+  if (TL.capturing){ stopASR(); return; }
+  setTStat("loading Whisper…");
+  try{
+    const T = await import("https://cdn.jsdelivr.net/npm/@xenova/transformers@2.17.2");
+    T.env.allowLocalModels = false;
+    if (!TL.asr) TL.asr = await T.pipeline("automatic-speech-recognition","Xenova/whisper-tiny",{ quantized:true });
+  }catch(e){ setTStat("Whisper failed"); toast("Could not load the in-browser model"); return; }
+
+  const v = $("pvideo");
+  let stream; try{ stream = v.captureStream ? v.captureStream() : v.mozCaptureStream(); }catch(e){}
+  if (!stream || !stream.getAudioTracks().length){
+    setTStat("no capturable audio");
+    toast("This stream blocks audio capture (CORS) — transcription unavailable.");
+    return;
+  }
+  TL.ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate:16000 });
+  TL.srcNode = TL.ctx.createMediaStreamSource(stream);
+  TL.proc = TL.ctx.createScriptProcessor(4096,1,1);
+  TL.buf = [];
+  TL.proc.onaudioprocess = e => TL.buf.push(new Float32Array(e.inputBuffer.getChannelData(0)));
+  TL.srcNode.connect(TL.proc); TL.proc.connect(TL.ctx.destination);
+  TL.capturing = true; setTStat("listening…");
+
+  const loop = async () => {
+    if (!TL.capturing) return;
+    const chunks = TL.buf; TL.buf = [];
+    const total = chunks.reduce((n,c) => n + c.length, 0);
+    if (total > 16000*3){
+      const pcm = new Float32Array(total); let o = 0;
+      chunks.forEach(c => { pcm.set(c,o); o += c.length; });
+      try{
+        const r = await TL.asr(pcm, { task:"transcribe", chunk_length_s:30 });
+        if (r && r.text) handleLine(r.text);
+      }catch(e){}
+    }
+    setTimeout(loop, 4000);
+  };
+  loop();
+}
+
+function stopASR(){
+  TL.capturing = false;
+  try{ TL.proc && TL.proc.disconnect(); }catch(e){}
+  try{ TL.srcNode && TL.srcNode.disconnect(); }catch(e){}
+  try{ TL.ctx && TL.ctx.close(); }catch(e){}
+  TL.ctx = TL.proc = TL.srcNode = null;
+  setTStat("stopped");
+}
+
+(function initTL(){
+  LANGS.forEach(([c,n]) => {
+    const o = document.createElement("option"); o.value = c; o.textContent = n;
+    $("langSel").appendChild(o);
+  });
+  $("langSel").value = TL.target;
+  $("langSel").onchange = e => { TL.target = e.target.value; TL.cache.clear(); TL.lastSpoken=""; setTStat("target: " + TL.target); };
+  $("ccBtn").onclick = () => {
+    TL.on = !TL.on; $("ccBtn").classList.toggle("on", TL.on);
+    if (!TL.on) $("ccbox").innerHTML = "";
+    if (TL.on) watchSubtitleTracks();
+    setTStat(TL.on ? "captions on" : "captions off");
+  };
+  $("voiceBtn").onclick = () => {
+    TL.voice = !TL.voice; $("voiceBtn").classList.toggle("on", TL.voice);
+    if (!TL.voice && "speechSynthesis" in window) speechSynthesis.cancel();
+    setTStat(TL.voice ? "voice on" : "voice off");
+  };
+  $("asrBtn").onclick = () => { TL.on = true; $("ccBtn").classList.add("on"); startASR(); };
+  new MutationObserver(() => {
+    if (!$("overlay").classList.contains("open")){ stopASR(); $("ccbox").innerHTML = ""; }
+    else setTimeout(watchSubtitleTracks, 2500);
+  }).observe($("overlay"), { attributes:true, attributeFilter:["class"] });
+})();
+
+/* ================= BOOT ================= */
+(async function boot(){
+  const hash = (location.hash || "").replace("#/","");
+  if (hash) go(hash);
+
+  renderWisdom(); renderScienceLinks(); loadAPOD(); searchPapers();
+  loadCountries();
+  loadChannels(S.channelCountry, false);
+  loadNews();
+  searchBooks();
+
+  $("stBooks").textContent = "70k+";
+  $("stClock").textContent = new Date().toLocaleTimeString("en-GB", { hour12:false });
+})();
+</script>
+</body>
+</html>
