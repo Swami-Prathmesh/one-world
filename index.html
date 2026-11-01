@@ -347,6 +347,11 @@ code{background:#182338;padding:1px 5px;border-radius:4px;font-size:11px;color:#
     <div class="grid g-wide" id="wgrid"></div>
 
     <h2 class="sec">Global Scripture &amp; Ancient Text Library</h2>
+    <p class="small muted" style="margin:-4px 0 12px;max-width:860px;line-height:1.7">
+      A directory of scripture and manuscript collections, each opening on its own publisher or
+      repository. Nothing here is copied, mirrored or re-hosted. Every card states the source's access
+      terms and the basis on which its copyright and licensing status was assessed.
+    </p>
     <div class="grid g-wide" id="sclib"></div>
 
     <h2 class="sec">Compare philosophical traditions</h2>
@@ -1143,6 +1148,51 @@ const SCRIPTURE_LIB = [
     lic:"Item-level access rules", u:"https://www.hathitrust.org/" }
 ];
 
+/* Per-collection verification basis: what was checked, and on what grounds
+   the licence is asserted. Kept separate so the directory data stays clean. */
+const SCLIB_VERIFY = {
+  "Veducation Library":
+    "Third-party site. Copyrighted material — no licence to reproduce found, so link-only, no content copied.",
+  "GRETIL":
+    "Academic repository; texts supplied for scholarly use. Individual e-texts carry their own editorial notes — check per file.",
+  "SARIT":
+    "Each text states its own licence, generally CC BY; translator and edition named per file.",
+  "TITUS":
+    "Academic corpus, free for research and teaching; commercial reuse requires permission from the editors.",
+  "Muktabodha Digital Library":
+    "Registration-gated. Manuscript images and e-texts remain the library's property; download terms set per item.",
+  "Sanskrit Wikisource":
+    "Community transcriptions under CC BY-SA. Verify the underlying edition is public domain before reuse.",
+  "Hindi Wikisource":
+    "CC BY-SA transcriptions of public-domain Hindi works; check the author's death date for each title.",
+  "Sacred Texts Archive":
+    "Hosts public-domain translations, largely 19th and early 20th century. Edition and translator are shown on each text page.",
+  "Jain eLibrary":
+    "Free access with item-level terms. Editions vary — confirm the publisher shown on each record.",
+  "Jainpedia":
+    "Scholarly project; manuscript images and articles carry stated terms per item.",
+  "Panjab Digital Library":
+    "Digitised originals, free to view; reuse of images requires permission.",
+  "SriGranth":
+    "Guru Granth Sahib text with several translations; each translation is separately attributed on the page.",
+  "Search Gurbani":
+    "Searchable Gurbani with attributed translations and word-by-word glosses.",
+  "eGangotri":
+    "Digitised manuscripts and out-of-print Indological books; public-domain status varies per scan.",
+  "National Digital Library of India":
+    "Aggregator over many institutions — licence is per item, never uniform. Check the source record.",
+  "UNESCO Digital Library":
+    "Mostly open access under stated CC licences; some items restricted, marked on the record.",
+  "Directory of Open Access Books":
+    "Index of peer-reviewed OA books; each title states its own CC licence.",
+  "Directory of Open Access Journals":
+    "Index of OA journals; article-level licence shown by the journal.",
+  "Internet Archive — texts":
+    "Mixed. Lending-restricted and in-copyright items open only in Archive's controlled reader; do not assume public domain.",
+  "HathiTrust":
+    "Full view only where public domain is determined; otherwise search-only. Status shown per item."
+};
+
 function renderScriptureLib(){
   const box = $("sclib");
   if (!box) return;
@@ -1151,7 +1201,8 @@ function renderScriptureLib(){
       <h3>${esc(x.n)}</h3>
       <p>${esc(x.d)}</p>
       <div class="tagrow"><span class="pill">${esc(x.scope)}</span></div>
-      <div class="tagrow"><span class="pill" style="color:#c9b27a;border-color:#4a3d22">${esc(x.lic)}</span></div>
+      <div class="tagrow"><span class="pill" style="color:#c9b27a;border-color:#4a3d22">Permissions: ${esc(x.lic)}</span></div>
+      ${SCLIB_VERIFY[x.n] ? `<p class="small muted" style="font-size:10.5px">Verified basis: ${esc(SCLIB_VERIFY[x.n])}</p>` : ""}
       <a class="pill" href="${esc(x.u)}" target="_blank" rel="noopener noreferrer">Open original ↗</a>
     </div></div>`).join("");
 }
