@@ -1,0 +1,28 @@
+{
+  "name": "ONE WORLD \u2014 media, science, culture & knowledge",
+  "short_name": "ONE WORLD",
+  "description": "Public media, open books, ancient philosophy and open science in one window.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#060a11",
+  "theme_color": "#03243c",
+  "icons": [
+    {
+      "src": "android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
