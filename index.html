@@ -226,9 +226,12 @@ code{background:#182338;padding:1px 5px;border-radius:4px;font-size:11px;color:#
   <section class="view" id="v-media">
     <div class="row">
       <select id="country" title="Country"></select>
+      <button class="btn on" id="srcTV">TV</button>
+      <button class="btn" id="srcRadio">Radio</button>
       <input class="inp" id="mq" type="search" placeholder="Search channel…" spellcheck="false" style="flex:1;min-width:160px">
       <button class="btn" id="mRefresh">Refresh index</button>
     </div>
+    <div class="small muted" id="mprogress" style="margin:-4px 0 10px"></div>
     <div class="chips" id="chips"></div>
     <div class="grid g-auto" id="mgrid"></div>
     <div class="empty" id="mempty" style="display:none"></div>
@@ -308,13 +311,12 @@ code{background:#182338;padding:1px 5px;border-radius:4px;font-size:11px;color:#
   <section class="view" id="v-docs">
     <div class="chips" id="docchips">
       <button class="chip on" data-t="all">All</button>
-      <button class="chip" data-t="wisdom">Knowledge &amp; Wisdom</button>
+      <button class="chip" data-t="knowledge">Knowledge</button>
+      <button class="chip" data-t="wisdom">Wisdom</button>
+      <button class="chip" data-t="philosophy">Philosophy</button>
       <button class="chip" data-t="finance">Finance</button>
-      <button class="chip" data-t="business">Business</button>
       <button class="chip" data-t="education">Education</button>
-      <button class="chip" data-t="science">Science</button>
-      <button class="chip" data-t="history">History</button>
-      <button class="chip" data-t="environment">Environment</button>
+      <button class="chip" data-t="business">Business</button>
     </div>
     <div class="row">
       <input class="inp" id="docq" type="search" placeholder="Search documentaries…" style="flex:1;min-width:200px" spellcheck="false">
@@ -328,7 +330,7 @@ code{background:#182338;padding:1px 5px;border-radius:4px;font-size:11px;color:#
 
     <div class="notice">
       <b>Where these come from.</b> Films play here through the Internet Archive's own embed player —
-      Archive hosts the file, this page only frames it. Items are community uploads, so copyright status
+      Archive hosts the file, this page only frames it. The catalogue is limited to knowledge, philosophy, finance, education and business, and screens out religious, sexual and historical material both in the query and again on every result. Items are community uploads, so copyright status
       varies: many are public domain or openly licensed, some are not, and the Archive record states the
       uploader and collection. Nothing is downloaded, copied or re-hosted. The publisher cards below open
       each broadcaster's own player, since their films are not free to embed.
@@ -516,7 +518,7 @@ async function fetchAny(url, { timeout = 15000 } = {}){
 
 /* ================= STATE ================= */
 const S = {
-  view:"home", countries:[], channels:[], channelCountry:"in",
+  mode:"tv", view:"home", countries:[], channels:[], channelCountry:"in",
   category:"all", q:"", wisdomTrad:"all", bookColl:"gutenberg",
   playing:-1, srcIdx:0, hls:null, list:[], news:[]
 };
@@ -644,6 +646,10 @@ function renderCountrySelect(){
   feat.value = "xx";
   feat.textContent = "★ Featured channels";
   sel.appendChild(feat);
+  const multi = document.createElement("option");
+  multi.value = "multi";
+  multi.textContent = "🌍 All countries (top 108)";
+  sel.appendChild(multi);
   S.countries.forEach(c => {
     const o = document.createElement("option");
     o.value = c.code;
@@ -720,36 +726,121 @@ function parseM3U(text){
   return out;
 }
 
-async function loadChannels(cc, force){
-  if (cc === "xx"){
-    S.channels = FEATURED.slice();
-    renderMedia();
-    $("stChannels").textContent = FEATURED.length;
-    return;
+/* ---------- country list for the multi-country view ---------- */
+const TOP_COUNTRIES = ("in,cn,us,id,pk,ng,br,bd,ru,mx,et,jp,ph,eg,cd,vn,ir,tr,de,th,gb,tz,fr,za,it,mm,ke,co,kr,es,ug,ar,dz,sd,ua,iq,af,pl,ca,ma,sa,uz,pe,ao,mz,gh,ye,np,ve,mg,cm,ci,au,ne,lk,bf,ml,ro,mw,cl,kz,zm,gt,ec,nl,sy,kh,td,so,zw,gn,rw,bj,bi,tn,bo,be,ht,cu,gr,jo,ae,cz,pt,se,az,tj,hu,il,at,ch,rs,hr,bg,sk,fi,no,dk,ie,nz,sg,my,hk,tw,qa,kw,om,bh,lb,ly,si,mt,cy,ee,lv,lt,by,md,ge,am,mn,la,bt,mv").split(",");
+
+function topCodes(){
+  const seen = new Set(), out = [];
+  for (const c of TOP_COUNTRIES){ if (c && !seen.has(c)){ seen.add(c); out.push(c); } }
+  for (const c of S.countries){
+    if (out.length >= 108) break;
+    if (!seen.has(c.code)){ seen.add(c.code); out.push(c.code); }
   }
+  return out.slice(0, 108);
+}
+
+async function pool(items, worker, limit){
+  let i = 0;
+  const run = async () => { while (i < items.length){ const idx = i++; await worker(items[idx], idx); } };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+}
+
+/* cached single-country TV index */
+async function getTV(cc, force){
   const key = "ow:m:" + cc;
   if (!force){
     try{
       const c = JSON.parse(localStorage.getItem(key) || "null");
-      if (c && Date.now() - c.t < 30*60*1000){ S.channels = c.d; renderMedia(); return; }
+      if (c && Date.now() - c.t < 30*60*1000) return c.d;
     }catch(e){}
   }
-  $("mgrid").innerHTML = '<div class="empty">Loading channels…</div>';
   for (const mk of MIRRORS){
     try{
       const txt = await tget(mk(cc));
       const list = parseM3U(txt);
       if (!list.length) continue;
-      S.channels = list;
       localStorage.setItem(key, JSON.stringify({ t:Date.now(), d:list }));
-      renderMedia();
-      $("stChannels").textContent = list.length;
-      return;
+      return list;
     }catch(e){}
   }
-  $("mgrid").innerHTML = "";
-  $("mempty").style.display = "block";
-  $("mempty").innerHTML = "Could not reach the channel index.<br>Mirrors tried: iptv-org, jsDelivr, raw.githubusercontent.";
+  return [];
+}
+
+/* radio via the open radio-browser.info database (no key, no account) */
+const RB_HOSTS = ["https://de1.api.radio-browser.info","https://nl1.api.radio-browser.info","https://at1.api.radio-browser.info"];
+
+async function getRadio(cc, force, limit){
+  limit = limit || 60;
+  const key = "ow:r:" + cc + ":" + limit;
+  if (!force){
+    try{
+      const c = JSON.parse(localStorage.getItem(key) || "null");
+      if (c && Date.now() - c.t < 30*60*1000) return c.d;
+    }catch(e){}
+  }
+  for (const h of RB_HOSTS){
+    try{
+      const url = h + "/json/stations/bycountrycodeexact/" + cc.toUpperCase()
+        + "?limit=" + limit + "&order=clickcount&reverse=true&hidebroken=true&is_https=true";
+      const arr = await jget(url, { timeout:12000 });
+      if (!Array.isArray(arr)) continue;
+      const list = arr.filter(st => st.url_resolved || st.url).map(st => ({
+        id: "rb-" + st.stationuuid,
+        name: (st.name || "Station").trim(),
+        logo: st.favicon || "",
+        quality: st.codec || "",
+        cat: "radio", cc: cc,
+        urls: [st.url_resolved || st.url].filter(Boolean)
+      }));
+      localStorage.setItem(key, JSON.stringify({ t:Date.now(), d:list }));
+      return list;
+    }catch(e){}
+  }
+  return [];
+}
+
+async function loadChannels(cc, force){
+  const prog = $("mprogress");
+  if (prog) prog.textContent = "";
+  $("mempty").style.display = "none";
+
+  if (cc === "xx"){ S.channels = FEATURED.slice(); renderMedia(); $("stChannels").textContent = S.channels.length; return; }
+  if (cc === "multi"){ return loadMulti(force); }
+
+  $("mgrid").innerHTML = '<div class="empty">Loading ' + (S.mode === "radio" ? "stations" : "channels") + '…</div>';
+  const list = S.mode === "radio" ? await getRadio(cc, force) : await getTV(cc, force);
+  S.channels = list;
+  renderMedia();
+  $("stChannels").textContent = list.length;
+  if (!list.length){
+    $("mempty").style.display = "block";
+    $("mempty").textContent = S.mode === "radio"
+      ? "No radio stations returned for this country."
+      : "Could not reach the channel index. Try Refresh, or another country.";
+  }
+}
+
+async function loadMulti(force){
+  const codes = topCodes();
+  S.channels = [];
+  renderMedia();
+  let done = 0;
+  const perCountry = S.mode === "radio" ? 10 : 0;
+  await pool(codes, async cc => {
+    const list = S.mode === "radio" ? await getRadio(cc, force, perCountry) : await getTV(cc, force);
+    if (list && list.length){ list.forEach(c => { c.cc = cc; }); S.channels.push(...list); }
+    done++;
+    if (done % 4 === 0 || done === codes.length){
+      const el = $("mprogress");
+      if (el) el.textContent = "loaded " + done + "/" + codes.length + " countries · " + S.channels.length + " " + (S.mode === "radio" ? "stations" : "channels");
+      renderMedia();
+    }
+  }, 5);
+  $("stChannels").textContent = S.channels.length;
+  if (!S.channels.length){
+    $("mempty").style.display = "block";
+    $("mempty").textContent = "No sources responded. Check the connection and try Refresh.";
+  }
 }
 
 function renderChips(){
@@ -779,7 +870,14 @@ function renderMedia(){
   const grid = $("mgrid");
   $("mempty").style.display = items.length ? "none" : "block";
   if (!items.length){ $("mempty").textContent = "No channels match this filter."; grid.innerHTML = ""; return; }
-  grid.innerHTML = items.map((ch, i) => `
+  const CAP = 600;
+  const shown = items.slice(0, CAP);
+  if (items.length > CAP){
+    const el = $("mprogress");
+    if (el) el.textContent = "showing " + CAP + " of " + items.length +
+      " — narrow it with search or a category chip";
+  }
+  grid.innerHTML = shown.map((ch, i) => `
     <div class="tile" data-i="${i}">
       <div class="thumb">
         ${ch.logo ? `<img loading="lazy" src="${esc(ch.logo)}" alt="">` : `<span class="ini">${esc(ch.name.slice(0,2).toUpperCase())}</span>`}
@@ -787,7 +885,7 @@ function renderMedia(){
       </div>
       <div class="tinfo">
         <div class="tname">${esc(ch.name)}</div>
-        <div class="tmeta">${CAT_LABEL[ch.cat]||ch.cat} · ${ch.urls.length} src</div>
+        <div class="tmeta">${CAT_LABEL[ch.cat]||ch.cat}${ch.cc ? " · " + ch.cc.toUpperCase() : ""} · ${ch.urls.length} src</div>
       </div>
     </div>`).join("");
   grid.querySelectorAll(".tile").forEach(t => t.onclick = () => openPlayer(+t.dataset.i));
@@ -808,7 +906,9 @@ function openPlayer(i){
   const ch = S.list[i];
   $("pname").textContent = ch.name;
   const c = S.countries.find(x => x.code === S.channelCountry);
-  const place = S.channelCountry === "xx" ? "Featured" : (c ? c.name : S.channelCountry);
+  const place = ch.cc ? ch.cc.toUpperCase()
+    : (S.channelCountry === "xx" ? "Featured"
+    : (S.channelCountry === "multi" ? "All countries" : (c ? c.name : S.channelCountry)));
   $("psub").innerHTML = (CAT_LABEL[ch.cat]||ch.cat) + " · " + esc(place) +
     (ch.home ? ` · <a href="${esc(ch.home)}" target="_blank" rel="noopener noreferrer">open source site ↗</a>` : "");
   $("overlay").classList.add("open");
@@ -822,6 +922,13 @@ function playSource(ch){
   v.removeAttribute("src");
   if (!url){ toast("“" + ch.name + "” failed on every source — trying next"); advance(1); return; }
   pStatus("connecting… source " + (S.srcIdx+1) + "/" + ch.urls.length + " · " + hostOf(url));
+
+  if (!/\.m3u8/i.test(url)){
+    v.src = url;
+    v.addEventListener("loadedmetadata", () => { pStatus("live · " + hostOf(url)); v.play().catch(() => {}); }, { once:true });
+    v.addEventListener("error", () => nextSource("stream error"), { once:true });
+    return;
+  }
 
   const native = v.canPlayType("application/vnd.apple.mpegurl");
   if (window.Hls && Hls.isSupported()){
@@ -1351,15 +1458,17 @@ function renderScienceLinks(){
 
 /* ================= DOCUMENTARIES (Internet Archive embeds) ================= */
 const DOC_TOPICS = {
-  all:         'documentary AND (knowledge OR wisdom OR education OR finance OR business OR science)',
-  wisdom:      'documentary AND (philosophy OR wisdom OR religion OR civilization)',
-  finance:     'documentary AND (finance OR economics OR money OR banking)',
-  business:    'documentary AND (business OR entrepreneurship OR industry OR startup)',
-  education:   'documentary AND (education OR learning OR school OR university)',
-  science:     'documentary AND (science OR physics OR biology OR space OR astronomy)',
-  history:     'documentary AND (history OR ancient OR civilization OR empire)',
-  environment: 'documentary AND (climate OR environment OR nature OR ocean OR wildlife)'
+  all:        'documentary AND (knowledge OR philosophy OR education OR finance OR business)',
+  knowledge:  'documentary AND (knowledge OR learning OR epistemology OR science)',
+  wisdom:     'documentary AND (wisdom OR philosophy OR contemplation OR insight)',
+  philosophy: 'documentary AND (philosophy OR ethics OR logic OR metaphysics)',
+  finance:    'documentary AND (finance OR economics OR money OR banking OR markets)',
+  education:  'documentary AND (education OR schooling OR university OR pedagogy)',
+  business:   'documentary AND (business OR entrepreneurship OR industry OR startup)'
 };
+
+/* Hard exclusions, applied to the query and again to every result. */
+const DOC_BLOCK = /(christian|christianity|jesus|bible|gospel|church|islam|islamic|muslim|quran|koran|muhammad|jihad|sex|sexual|erotic|porn|nude|nudity|history|historical|historian|war|battle|empire|dynasty|colonial)/i;
 
 const DOC_PUBLISHERS = [
   { n:"DW Documentary", tag:"Germany · public broadcaster",
@@ -1385,7 +1494,8 @@ let DOC_TOPIC = "all";
 async function loadDocs(force){
   const grid = $("docgrid"), st = $("docstatus");
   const q = $("docq").value.trim();
-  const query = q ? `${q} AND mediatype:movies` : `(${DOC_TOPICS[DOC_TOPIC]}) AND mediatype:movies`;
+  const base = q ? `${q}` : `(${DOC_TOPICS[DOC_TOPIC]})`;
+  const query = `${base} AND mediatype:movies AND -subject:christianity AND -subject:islam AND -subject:history AND -subject:sex`;
   st.textContent = "searching the archive…";
   grid.innerHTML = '<div class="empty">Loading documentaries…</div>';
   try{
@@ -1393,7 +1503,10 @@ async function loadDocs(force){
       + `&fl[]=identifier&fl[]=title&fl[]=description&fl[]=year&fl[]=creator&fl[]=collection`
       + `&rows=24&page=1&output=json&sort[]=downloads+desc`;
     const d = await jget(url);
-    const docs = d?.response?.docs || [];
+    const docs = (d?.response?.docs || []).filter(x => {
+      const hay = ((x.title || "") + " " + (x.description || "") + " " + (x.subject || "")).toString();
+      return !DOC_BLOCK.test(hay);
+    });
     if (!docs.length){ grid.innerHTML = '<div class="empty">No films matched. Try another topic or search term.</div>';
       st.textContent = "no results"; return; }
     grid.innerHTML = docs.map((x, i) => `
@@ -1669,6 +1782,8 @@ async function globalSearch(){
 
 /* ================= WIRING ================= */
 $("country").onchange = e => { S.channelCountry = e.target.value; loadChannels(e.target.value, false); };
+$("srcTV").onclick = () => { S.mode = "tv"; $("srcTV").classList.add("on"); $("srcRadio").classList.remove("on"); loadChannels(S.channelCountry, false); };
+$("srcRadio").onclick = () => { S.mode = "radio"; $("srcRadio").classList.add("on"); $("srcTV").classList.remove("on"); loadChannels(S.channelCountry, false); };
 $("mq").oninput = e => { S.q = e.target.value.trim(); renderMedia(); };
 $("mRefresh").onclick = () => { toast("Refreshing index…", 1200); loadChannels(S.channelCountry, true); };
 
