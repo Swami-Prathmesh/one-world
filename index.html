@@ -176,6 +176,7 @@ code{background:#182338;padding:1px 5px;border-radius:4px;font-size:11px;color:#
     <button data-v="home" class="on">Home</button>
     <button data-v="media">TV &amp; Radio</button>
     <button data-v="news">News</button>
+    <button data-v="dialogue">Dialogue</button>
     <button data-v="library">Library</button>
     <button data-v="wisdom">Wisdom</button>
     <button data-v="science">Science</button>
@@ -252,6 +253,53 @@ code{background:#182338;padding:1px 5px;border-radius:4px;font-size:11px;color:#
       <b>Sources.</b> Headlines come from the publishers' own public RSS feeds, fetched through a
       CORS relay. Every card links to the original article on the publisher's site and shows the
       publication time and publisher. Nothing is rewritten or republished here.
+    </div>
+  </section>
+
+  <!-- ================= DIALOGUE ================= -->
+  <section class="view" id="v-dialogue">
+    <div class="chips" id="dchips">
+      <button class="chip on" data-d="all">All</button>
+      <button class="chip" data-d="articles">Articles</button>
+      <button class="chip" data-d="events">Events</button>
+      <button class="chip" data-d="ott">Films &amp; Series</button>
+      <button class="chip" data-d="projects">Projects</button>
+      <button class="chip" data-d="sites">Sites</button>
+    </div>
+
+    <div id="dArticles">
+      <h2 class="sec">Latest from The Jaipur Dialogues</h2>
+      <div class="grid g-wide" id="jdgrid"></div>
+      <div class="small muted" id="jdstatus" style="margin-top:8px"></div>
+    </div>
+
+    <div id="dEvents">
+      <h2 class="sec">Events &amp; festival</h2>
+      <div class="grid g-wide" id="devents"></div>
+    </div>
+
+    <div id="dOtt">
+      <h2 class="sec">Prachyam — films, series &amp; masterclasses</h2>
+      <div class="grid g-wide" id="dott"></div>
+    </div>
+
+    <div id="dProjects">
+      <h2 class="sec">Prachyam Trust — projects</h2>
+      <div class="grid g-wide" id="dprojects"></div>
+    </div>
+
+    <div id="dSites">
+      <h2 class="sec">Related sites</h2>
+      <div class="grid g-wide" id="dsites"></div>
+    </div>
+
+    <div class="notice">
+      <b>How this section works.</b> What these organisations publish openly — articles, event pages,
+      project updates — is fetched live and shown here. Content behind their own gates is not embedded:
+      Prachyam's OTT catalogue is a paid subscription service, and its films, series and masterclasses
+      open on Prachyam's own platform under their terms. Live sessions from The Jaipur Dialogues are
+      carried on third-party video platforms, which this project does not embed. Nothing is copied,
+      mirrored or re-hosted — every card points at the publisher.
     </div>
   </section>
 
@@ -1206,6 +1254,120 @@ function renderScienceLinks(){
     </div></div>`).join("");
 }
 
+/* ================= DIALOGUE (Jaipur Dialogues · Prachyam) ================= */
+const JD_FEEDS = [
+  { n:"The Jaipur Dialogues", u:"https://www.thejaipurdialogues.com/feed/" },
+  { n:"Prachyam", u:"https://prachyam.com/feed/" },
+  { n:"Prachyam Trust", u:"https://www.prachyam.org/feed/" }
+];
+
+const DEVENTS = [
+  { n:"The Jaipur Dialogues Annual Festival 2026", tag:"Festival · Jaipur",
+    d:"Three days of debates, round tables and cultural sessions at Hotel Clarks Amer, Jaipur — 30 October to 1 November 2026, themed “धर्मयुद्ध — The Battle for Bharat”, with 70+ speakers and 2,500+ delegates.",
+    u:"https://event.thejaipurdialogues.com/", act:"Event site" },
+  { n:"Festival passes & registration", tag:"Ticketing",
+    d:"Delegate registration and pass purchase for the Annual Festival, handled on the festival's own ticketing site.",
+    u:"https://ticket.thejaipurdialogues.com/", act:"Tickets" },
+  { n:"Jaipur Dialogues — programme & schedule", tag:"Programme",
+    d:"Day-wise schedule of sessions, round tables and speakers, published on the festival site.",
+    u:"https://event.thejaipurdialogues.com/", act:"Open programme" }
+];
+
+const OTT_CATS = [
+  ["Films","Feature-length films on civilisational and historical themes."],
+  ["Series","Multi-episode documentary series."],
+  ["Movies & Documentaries","Documentary films and long-form investigations."],
+  ["Science & Discoveries","Research-led episodes on Indian knowledge systems."],
+  ["History & Heroes","Biographical and historical narratives."],
+  ["Masterclasses","Taught sessions on texts, arts and traditions."],
+  ["Kids & Family","Content made for younger viewers and families."],
+  ["Travel & Culture","Temples, geography and cultural landscapes."],
+  ["Music & Devotion","Devotional and classical music programming."],
+  ["Faith & Spirituality","Practice, philosophy and pilgrimage."],
+  ["The Changemakers","Profiles of contemporary figures."],
+  ["Akhand Saavdhan","Standalone long-form episodes."]
+];
+
+const DPROJECTS = [
+  { n:"Mahabharat — cinematic retelling", tag:"In production",
+    d:"A 4K retelling built from the scriptural sources, with a commissioned orchestral score and a scholarly review board checking each episode against the Critical Edition. Production updates and patronage options are on the Trust site.",
+    u:"https://www.prachyam.org/", act:"Project page" },
+  { n:"The Eternal Civilisation", tag:"Released free",
+    d:"A documentary released free to watch in six languages, announced by the Trust as openly available.",
+    u:"https://www.prachyam.org/", act:"Watch on Prachyam" },
+  { n:"Prachyam Trust — about & support", tag:"Trust",
+    d:"The Trust's initiatives, essays, community projects and film production, with donation options under Section 80G.",
+    u:"https://www.prachyam.org/", act:"Open Trust site" }
+];
+
+const DSITES = [
+  { n:"The Jaipur Dialogues", d:"Articles, commentary and the annual festival.", u:"https://www.thejaipurdialogues.com/" },
+  { n:"JD Annual Festival", d:"Festival site with programme and speakers.", u:"https://event.thejaipurdialogues.com/" },
+  { n:"JD Ticketing", d:"Passes and delegate registration.", u:"https://ticket.thejaipurdialogues.com/" },
+  { n:"JD Digital", d:"The organisation's digital arm.", u:"https://www.jddigital.in/" },
+  { n:"Prachyam — Indic OTT", d:"Subscription platform for films, series and masterclasses.", u:"https://prachyam.com/" },
+  { n:"Prachyam Trust", d:"Trust site: projects, essays and support.", u:"https://www.prachyam.org/" }
+];
+
+function linkCard(x, act){
+  return `<div class="card"><div class="body">
+    <h3>${esc(x.n)}</h3>
+    ${x.tag ? `<div class="tagrow"><span class="pill">${esc(x.tag)}</span></div>` : ""}
+    <p>${esc(x.d || "")}</p>
+    <a class="pill" href="${esc(x.u)}" target="_blank" rel="noopener noreferrer">${esc(act || "Open ↗")}</a>
+  </div></div>`;
+}
+
+function renderDialogueStatic(){
+  $("devents").innerHTML   = DEVENTS.map(x => linkCard(x, x.act)).join("");
+  $("dott").innerHTML      = OTT_CATS.map(([n,d]) => linkCard(
+      { n, tag:"Prachyam OTT", d, u:"https://prachyam.com/" }, "Browse on Prachyam")).join("");
+  $("dprojects").innerHTML = DPROJECTS.map(x => linkCard(x, x.act)).join("");
+  $("dsites").innerHTML    = DSITES.map(x => linkCard(x, "Open ↗")).join("");
+}
+
+async function loadDialogue(){
+  const grid = $("jdgrid"), st = $("jdstatus");
+  st.textContent = "fetching published articles…";
+  const all = [];
+  for (const f of JD_FEEDS){
+    try{
+      const xml = await fetchAny(f.u, { timeout:12000 });
+      const items = parseRSS(xml, f.n, "dialogue");
+      if (items.length) all.push(...items);
+    }catch(e){ /* feed absent or blocked — the site card below still works */ }
+  }
+  if (!all.length){
+    grid.innerHTML = JD_FEEDS.map(f => linkCard(
+      { n:f.n, tag:"Articles", d:"Latest published articles and commentary.",
+        u:f.u.replace(/feed\/?$/,"") }, "Open site")).join("");
+    st.textContent = "Feeds unreachable from this network — direct links shown instead.";
+    return;
+  }
+  all.sort((a,b) => (b.when || "").localeCompare(a.when || ""));
+  grid.innerHTML = all.slice(0, 24).map(n => `
+    <div class="card"><div class="body">
+      <h3><a href="${esc(n.link)}" target="_blank" rel="noopener noreferrer">${esc(n.title)}</a></h3>
+      ${n.desc ? `<p>${esc(n.desc)}…</p>` : ""}
+      <div class="tagrow"><span class="pill">${esc(n.feed)}</span><span class="pill">${esc(n.when || "—")}</span></div>
+    </div></div>`).join("");
+  st.textContent = all.length + " articles · sources: " +
+    [...new Set(all.map(a => a.feed))].join(", ");
+}
+
+/* filter chips inside the Dialogue tab */
+function wireDialogueChips(){
+  const map = { articles:["dArticles"], events:["dEvents"], ott:["dOtt"],
+                projects:["dProjects"], sites:["dSites"] };
+  const all = ["dArticles","dEvents","dOtt","dProjects","dSites"];
+  document.querySelectorAll("#dchips .chip").forEach(b => b.onclick = () => {
+    document.querySelectorAll("#dchips .chip").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    const k = b.dataset.d;
+    all.forEach(id => $(id).style.display = (k === "all" || map[k].includes(id)) ? "block" : "none");
+  });
+}
+
 /* ================= ATLAS ================= */
 function renderAtlas(){
   const q = ($("aq")?.value || "").toLowerCase();
@@ -1495,6 +1657,7 @@ function stopASR(){
   if (hash) go(hash);
 
   renderWisdom(); renderScriptureLib(); renderScienceLinks(); loadAPOD(); searchPapers();
+  renderDialogueStatic(); wireDialogueChips(); loadDialogue();
   loadCountries();
   loadChannels(S.channelCountry, false);
   loadNews();
