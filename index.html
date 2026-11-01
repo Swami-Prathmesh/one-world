@@ -228,6 +228,7 @@ code{background:#182338;padding:1px 5px;border-radius:4px;font-size:11px;color:#
       <select id="country" title="Country"></select>
       <button class="btn on" id="srcTV">TV</button>
       <button class="btn" id="srcRadio">Radio</button>
+      <select id="mlang" title="Language"></select>
       <input class="inp" id="mq" type="search" placeholder="Search channel…" spellcheck="false" style="flex:1;min-width:160px">
       <button class="btn" id="mRefresh">Refresh index</button>
     </div>
@@ -518,7 +519,8 @@ async function fetchAny(url, { timeout = 15000 } = {}){
 
 /* ================= STATE ================= */
 const S = {
-  mode:"tv", view:"home", countries:[], channels:[], channelCountry:"in",
+  mode:"tv", view:"home", countries:[], channels:[], channelCountry:"multi",
+  geoCC:null, lang:"all",
   category:"all", q:"", wisdomTrad:"all", bookColl:"gutenberg",
   playing:-1, srcIdx:0, hls:null, list:[], news:[]
 };
@@ -726,6 +728,66 @@ function parseM3U(text){
   return out;
 }
 
+/* ---------- language filter (all countries) ---------- */
+const LANGUAGE_NAME = {
+  en:"English", hi:"Hindi", bn:"Bengali", ta:"Tamil", te:"Telugu", mr:"Marathi",
+  gu:"Gujarati", kn:"Kannada", ml:"Malayalam", pa:"Punjabi", ur:"Urdu", or:"Odia",
+  as:"Assamese", ne:"Nepali", si:"Sinhala", ar:"Arabic", fa:"Persian", ru:"Russian",
+  zh:"Chinese", ja:"Japanese", ko:"Korean", es:"Spanish", fr:"French", de:"German",
+  pt:"Portuguese", it:"Italian", tr:"Turkish", id:"Indonesian", vi:"Vietnamese",
+  th:"Thai", sw:"Swahili", nl:"Dutch", pl:"Polish", uk:"Ukrainian", my:"Burmese"
+};
+
+function countryLangs(cc){
+  const c = S.countries.find(x => x.code === cc);
+  return (c && c.languages ? c.languages : []).map(x => x.toLowerCase());
+}
+
+/* A channel matches a language if its own language tag says so, its name
+   says so (many channels are literally "… English"), or its country lists
+   that language as official. */
+function matchesLang(ch, code){
+  if (!code || code === "all") return true;
+  const name = LANGUAGE_NAME[code];
+  if (!name) return true;
+  const lc = name.toLowerCase();
+  if (ch.lang && String(ch.lang).toLowerCase().includes(lc)) return true;
+  if ((ch.name || "").toLowerCase().includes(lc)) return true;
+  return countryLangs(ch.cc).includes(lc);
+}
+
+function renderLangSelect(){
+  const sel = $("mlang");
+  if (!sel || sel.dataset.done) return;
+  sel.dataset.done = "1";
+  const opts = [["all","All languages"]].concat(Object.entries(LANGUAGE_NAME).map(([c,n]) => [c,n]));
+  sel.innerHTML = opts.map(([v,n]) => `<option value="${v}">${n}</option>`).join("");
+  sel.value = S.lang;
+  sel.onchange = e => { S.lang = e.target.value; renderMedia(); };
+}
+
+/* ---------- visitor country (so home channels come first) ---------- */
+async function detectGeo(){
+  const tries = [
+    ["https://api.country.is/", d => d && d.country],
+    ["https://ipwho.is/",      d => d && d.country_code],
+    ["https://ipapi.co/json/", d => d && d.country_code]
+  ];
+  for (const [u, pick] of tries){
+    try{
+      const d = await jget(u, { timeout: 6000 });
+      const cc = String(pick(d) || "").toLowerCase();
+      if (cc.length === 2){ S.geoCC = cc; return cc; }
+    }catch(e){}
+  }
+  return null;
+}
+
+function sortHomeFirst(){
+  if (!S.geoCC) return;
+  S.channels.sort((a,b) => (b.cc === S.geoCC ? 1 : 0) - (a.cc === S.geoCC ? 1 : 0));
+}
+
 /* ---------- country list for the multi-country view ---------- */
 const TOP_COUNTRIES = ("in,cn,us,id,pk,ng,br,bd,ru,mx,et,jp,ph,eg,cd,vn,ir,tr,de,th,gb,tz,fr,za,it,mm,ke,co,kr,es,ug,ar,dz,sd,ua,iq,af,pl,ca,ma,sa,uz,pe,ao,mz,gh,ye,np,ve,mg,cm,ci,au,ne,lk,bf,ml,ro,mw,cl,kz,zm,gt,ec,nl,sy,kh,td,so,zw,gn,rw,bj,bi,tn,bo,be,ht,cu,gr,jo,ae,cz,pt,se,az,tj,hu,il,at,ch,rs,hr,bg,sk,fi,no,dk,ie,nz,sg,my,hk,tw,qa,kw,om,bh,lb,ly,si,mt,cy,ee,lv,lt,by,md,ge,am,mn,la,bt,mv").split(",");
 
@@ -810,6 +872,7 @@ async function loadChannels(cc, force){
   $("mgrid").innerHTML = '<div class="empty">Loading ' + (S.mode === "radio" ? "stations" : "channels") + '…</div>';
   const list = S.mode === "radio" ? await getRadio(cc, force) : await getTV(cc, force);
   S.channels = list;
+  sortHomeFirst();
   renderMedia();
   $("stChannels").textContent = list.length;
   if (!list.length){
@@ -832,10 +895,12 @@ async function loadMulti(force){
     done++;
     if (done % 4 === 0 || done === codes.length){
       const el = $("mprogress");
-      if (el) el.textContent = "loaded " + done + "/" + codes.length + " countries · " + S.channels.length + " " + (S.mode === "radio" ? "stations" : "channels");
+      if (el) el.textContent = "loaded " + done + "/" + codes.length + " countries · " + S.channels.length + " " + (S.mode === "radio" ? "stations" : "channels") + (S.geoCC ? " · " + S.geoCC.toUpperCase() + " first" : "");
       renderMedia();
     }
   }, 5);
+  sortHomeFirst();
+  renderMedia();
   $("stChannels").textContent = S.channels.length;
   if (!S.channels.length){
     $("mempty").style.display = "block";
@@ -861,6 +926,7 @@ function filteredChannels(){
   const q = S.q.toLowerCase();
   return S.channels.filter(c =>
     (S.category === "all" || c.cat === S.category) &&
+    matchesLang(c, S.lang) &&
     (!q || c.name.toLowerCase().includes(q)));
 }
 
@@ -1999,6 +2065,8 @@ function stopASR(){
   renderDialogueStatic(); wireDialogueChips(); loadDialogue();
   renderDocPublishers(); wireDocs(); loadDocs();
   loadCountries();
+  renderLangSelect();
+  await detectGeo();
   loadChannels(S.channelCountry, false);
   loadNews();
   searchBooks();
