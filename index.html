@@ -177,6 +177,7 @@ code{background:#182338;padding:1px 5px;border-radius:4px;font-size:11px;color:#
     <button data-v="media">TV &amp; Radio</button>
     <button data-v="news">News</button>
     <button data-v="dialogue">Dialogue</button>
+    <button data-v="docs">Documentaries</button>
     <button data-v="library">Library</button>
     <button data-v="wisdom">Wisdom</button>
     <button data-v="science">Science</button>
@@ -300,6 +301,37 @@ code{background:#182338;padding:1px 5px;border-radius:4px;font-size:11px;color:#
       open on Prachyam's own platform under their terms. Live sessions from The Jaipur Dialogues are
       carried on third-party video platforms, which this project does not embed. Nothing is copied,
       mirrored or re-hosted — every card points at the publisher.
+    </div>
+  </section>
+
+  <!-- ================= DOCUMENTARIES ================= -->
+  <section class="view" id="v-docs">
+    <div class="chips" id="docchips">
+      <button class="chip on" data-t="all">All</button>
+      <button class="chip" data-t="wisdom">Knowledge &amp; Wisdom</button>
+      <button class="chip" data-t="finance">Finance</button>
+      <button class="chip" data-t="business">Business</button>
+      <button class="chip" data-t="education">Education</button>
+      <button class="chip" data-t="science">Science</button>
+      <button class="chip" data-t="history">History</button>
+      <button class="chip" data-t="environment">Environment</button>
+    </div>
+    <div class="row">
+      <input class="inp" id="docq" type="search" placeholder="Search documentaries…" style="flex:1;min-width:200px" spellcheck="false">
+      <button class="btn" id="docSearch">Search</button>
+      <span class="small muted" id="docstatus"></span>
+    </div>
+    <div class="grid g-wide" id="docgrid"></div>
+
+    <h2 class="sec">Documentary publishers</h2>
+    <div class="grid g-wide" id="docpub"></div>
+
+    <div class="notice">
+      <b>Where these come from.</b> Films play here through the Internet Archive's own embed player —
+      Archive hosts the file, this page only frames it. Items are community uploads, so copyright status
+      varies: many are public domain or openly licensed, some are not, and the Archive record states the
+      uploader and collection. Nothing is downloaded, copied or re-hosted. The publisher cards below open
+      each broadcaster's own player, since their films are not free to embed.
     </div>
   </section>
 
@@ -608,6 +640,10 @@ function renderCountrySelect(){
   const sel = $("country");
   if (!sel) return;
   sel.innerHTML = "";
+  const feat = document.createElement("option");
+  feat.value = "xx";
+  feat.textContent = "★ Featured channels";
+  sel.appendChild(feat);
   S.countries.forEach(c => {
     const o = document.createElement("option");
     o.value = c.code;
@@ -685,6 +721,12 @@ function parseM3U(text){
 }
 
 async function loadChannels(cc, force){
+  if (cc === "xx"){
+    S.channels = FEATURED.slice();
+    renderMedia();
+    $("stChannels").textContent = FEATURED.length;
+    return;
+  }
   const key = "ow:m:" + cc;
   if (!force){
     try{
@@ -766,7 +808,9 @@ function openPlayer(i){
   const ch = S.list[i];
   $("pname").textContent = ch.name;
   const c = S.countries.find(x => x.code === S.channelCountry);
-  $("psub").textContent = (CAT_LABEL[ch.cat]||ch.cat) + " · " + (c ? c.name : S.channelCountry);
+  const place = S.channelCountry === "xx" ? "Featured" : (c ? c.name : S.channelCountry);
+  $("psub").innerHTML = (CAT_LABEL[ch.cat]||ch.cat) + " · " + esc(place) +
+    (ch.home ? ` · <a href="${esc(ch.home)}" target="_blank" rel="noopener noreferrer">open source site ↗</a>` : "");
   $("overlay").classList.add("open");
   playSource(ch);
 }
@@ -1305,6 +1349,135 @@ function renderScienceLinks(){
     </div></div>`).join("");
 }
 
+/* ================= DOCUMENTARIES (Internet Archive embeds) ================= */
+const DOC_TOPICS = {
+  all:         'documentary AND (knowledge OR wisdom OR education OR finance OR business OR science)',
+  wisdom:      'documentary AND (philosophy OR wisdom OR religion OR civilization)',
+  finance:     'documentary AND (finance OR economics OR money OR banking)',
+  business:    'documentary AND (business OR entrepreneurship OR industry OR startup)',
+  education:   'documentary AND (education OR learning OR school OR university)',
+  science:     'documentary AND (science OR physics OR biology OR space OR astronomy)',
+  history:     'documentary AND (history OR ancient OR civilization OR empire)',
+  environment: 'documentary AND (climate OR environment OR nature OR ocean OR wildlife)'
+};
+
+const DOC_PUBLISHERS = [
+  { n:"DW Documentary", tag:"Germany · public broadcaster",
+    d:"Long-form investigative and cultural documentaries from Deutsche Welle.", u:"https://www.dw.com/en/tv/docfilm/s-3610" },
+  { n:"Al Jazeera Witness", tag:"Qatar · public",
+    d:"Award-winning human-rights documentary strand.", u:"https://www.aljazeera.com/program/witness/" },
+  { n:"PBS Frontline", tag:"USA · public broadcasting",
+    d:"Investigative documentary series on power, money and policy.", u:"https://www.pbs.org/wgbh/frontline/" },
+  { n:"National Film Board of Canada", tag:"Canada · public",
+    d:"Hundreds of full-length documentaries and animations, free to watch.", u:"https://www.nfb.ca/" },
+  { n:"ARTE", tag:"France/Germany · public",
+    d:"Culture, history and science documentaries from the Franco-German channel.", u:"https://www.arte.tv/en/" },
+  { n:"NASA+", tag:"USA · space agency",
+    d:"Mission films, launch coverage and space science documentaries.", u:"https://plus.nasa.gov/" },
+  { n:"Internet Archive — movies", tag:"Archive",
+    d:"Full open film archive, browsable by collection and year.", u:"https://archive.org/details/movies" },
+  { n:"Prachyam Trust — The Eternal Civilisation", tag:"India",
+    d:"Documentary released by the Trust as free to watch in six languages.", u:"https://www.prachyam.org/" }
+];
+
+let DOC_TOPIC = "all";
+
+async function loadDocs(force){
+  const grid = $("docgrid"), st = $("docstatus");
+  const q = $("docq").value.trim();
+  const query = q ? `${q} AND mediatype:movies` : `(${DOC_TOPICS[DOC_TOPIC]}) AND mediatype:movies`;
+  st.textContent = "searching the archive…";
+  grid.innerHTML = '<div class="empty">Loading documentaries…</div>';
+  try{
+    const url = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(query)}`
+      + `&fl[]=identifier&fl[]=title&fl[]=description&fl[]=year&fl[]=creator&fl[]=collection`
+      + `&rows=24&page=1&output=json&sort[]=downloads+desc`;
+    const d = await jget(url);
+    const docs = d?.response?.docs || [];
+    if (!docs.length){ grid.innerHTML = '<div class="empty">No films matched. Try another topic or search term.</div>';
+      st.textContent = "no results"; return; }
+    grid.innerHTML = docs.map((x, i) => `
+      <div class="card" data-idx="${i}">
+        <div class="docslot" data-slot="${i}">
+          <div style="aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;
+                      background:#0a111c;cursor:pointer;border-bottom:1px solid var(--line)">
+            <span class="btn" style="pointer-events:none">▶ Watch here</span>
+          </div>
+        </div>
+        <div class="body">
+          <h3>${esc(x.title || x.identifier)}</h3>
+          <p>${esc((x.description || "").toString().replace(/<[^>]+>/g," ").slice(0,150))}</p>
+          <div class="tagrow">
+            ${x.year ? `<span class="pill">${esc(x.year)}</span>` : ""}
+            <span class="pill">${esc((x.creator || "Internet Archive").toString().slice(0,40))}</span>
+          </div>
+          <a class="pill" href="https://archive.org/details/${esc(x.identifier)}" target="_blank" rel="noopener noreferrer">Source record ↗</a>
+        </div>
+      </div>`).join("");
+
+    grid.querySelectorAll(".docslot").forEach(slot => {
+      const idx = +slot.dataset.slot;
+      slot.style.cursor = "pointer";
+      slot.onclick = () => {
+        const item = docs[idx];
+        slot.innerHTML = `<iframe src="https://archive.org/embed/${esc(item.identifier)}"
+          style="width:100%;aspect-ratio:16/9;border:0;display:block;background:#000"
+          allowfullscreen></iframe>`;
+      };
+    });
+    st.textContent = docs.length + " films";
+  }catch(e){
+    grid.innerHTML = "";
+    st.textContent = "archive unreachable right now";
+    $("docgrid").innerHTML = '<div class="empty">The Internet Archive did not respond. ' +
+      'Use the publisher links below.</div>';
+  }
+}
+
+function renderDocPublishers(){
+  $("docpub").innerHTML = DOC_PUBLISHERS.map(x => `
+    <div class="card"><div class="body">
+      <h3>${esc(x.n)}</h3>
+      <div class="tagrow"><span class="pill">${esc(x.tag)}</span></div>
+      <p>${esc(x.d)}</p>
+      <a class="pill" href="${esc(x.u)}" target="_blank" rel="noopener noreferrer">Open player ↗</a>
+    </div></div>`).join("");
+}
+
+function wireDocs(){
+  document.querySelectorAll("#docchips .chip").forEach(b => b.onclick = () => {
+    document.querySelectorAll("#docchips .chip").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    DOC_TOPIC = b.dataset.t;
+    $("docq").value = "";
+    loadDocs(true);
+  });
+  $("docSearch").onclick = () => loadDocs(true);
+  $("docq").addEventListener("keydown", e => { if (e.key === "Enter") loadDocs(true); });
+}
+
+/* ================= FEATURED CHANNELS (added by hand) ================= */
+const FEATURED = [
+  { id:"rt-english", name:"RT English", logo:"", quality:"", cat:"news",
+    home:"https://rt-english.com/",
+    urls:[
+      "https://rt-news-gd.secure2.footprint.net/1103.m3u8",
+      "https://rt-english.com/"
+    ] },
+  { id:"dd-news-feat", name:"DD News", logo:"", quality:"", cat:"government",
+    home:"https://ddnews.gov.in/",
+    urls:[
+      "https://nicls1-lh.akamaihd.net/i/ddnews_1@409133/master.m3u8",
+      "http://hls.media.nic.in/hls/live/ddnews/ddnews.m3u8"
+    ] },
+  { id:"sansad1-feat", name:"Sansad TV 1", logo:"", quality:"", cat:"government",
+    home:"https://sansadtv.nic.in/live-tv",
+    urls:["https://nicls1-lh.akamaihd.net/i/lst_1@26969/master.m3u8"] },
+  { id:"sansad2-feat", name:"Sansad TV 2", logo:"", quality:"", cat:"government",
+    home:"https://sansadtv.nic.in/live-tv",
+    urls:["https://nicls2-lh.akamaihd.net/i/rstv_1@26970/master.m3u8"] }
+];
+
 /* ================= DIALOGUE (Jaipur Dialogues · Prachyam) ================= */
 const JD_FEEDS = [
   { n:"The Jaipur Dialogues", u:"https://www.thejaipurdialogues.com/feed/" },
@@ -1709,6 +1882,7 @@ function stopASR(){
 
   renderWisdom(); renderScriptureLib(); renderScienceLinks(); loadAPOD(); searchPapers();
   renderDialogueStatic(); wireDialogueChips(); loadDialogue();
+  renderDocPublishers(); wireDocs(); loadDocs();
   loadCountries();
   loadChannels(S.channelCountry, false);
   loadNews();
