@@ -499,6 +499,7 @@ code{background:#182338;padding:1px 5px;border-radius:4px;font-size:11px;color:#
     <h3 id="diagtitle">Diagnosing channel…</h3>
     <div id="diagbody"></div>
     <div class="diagfoot">
+      <button class="btn" id="diagReport">Report problem</button>
       <button class="btn" id="diagShare" disabled>Share fix</button>
       <button class="btn" id="diagRetry">Re-run check</button>
       <button class="btn" id="diagClose">Close</button>
@@ -924,7 +925,8 @@ function renderHealthStrip(){
   el.textContent = "self-check · synced " + day + " · " + mir +
     " · healthy " + ok + " · dead " + dead + " · " + S.channels.length + " loaded" +
     (autoRepairStats.running ? " · auto-repair running…"
-      : (autoRepairStats.fixed ? " · auto-repaired " + autoRepairStats.fixed : ""));
+      : (autoRepairStats.fixed ? " · auto-repaired " + autoRepairStats.fixed : "")) +
+    (Object.keys(BOARD.fixes).length ? " · board " + Object.keys(BOARD.fixes).length + " shared fixes" : "");
 }
 
 /* ---------- stream URL ranking ----------
@@ -990,6 +992,80 @@ function parseM3U(text){
     e.mixed = all.length > 0 && e.urls.every(u => location.protocol === "https:" && /^http:/i.test(u));
   });
   return out.filter(e => e.urls.length);   // only truly empty records are dropped
+}
+
+/* ==================================================================
+   COMMUNITY FIX BOARD
+   A free, key-less public message board (ntfy.sh) acts as a shared
+   noticeboard. A visitor's browser publishes a fix or a problem report;
+   every other visitor's browser reads the board and applies what it can.
+   Nothing is trusted blindly: every shared URL is only used after this
+   browser has successfully loaded it, and anything that fails is dropped.
+   If the board is unreachable the page simply behaves as before.
+   ================================================================== */
+const BOARD_URL = "https://ntfy.sh/oneworld-fixboard-v1";
+const BOARD_TTL = 60 * 60 * 1000;          // re-read at most hourly
+let BOARD = { fixes:{}, reports:{}, at:0 };
+
+function validChannelId(id){ return typeof id === "string" && /^[\w.\-@]{1,64}$/.test(id); }
+function validStreamUrl(u){ return typeof u === "string" && /^https:\/\//i.test(u) && u.length < 500; }
+
+function parseBoard(ndjson){
+  const fixes = {}, reports = {};
+  ndjson.split("\n").forEach(line => {
+    line = line.trim(); if (!line) return;
+    let ev; try { ev = JSON.parse(line); } catch(e){ return; }
+    if (!ev || !ev.message) return;
+    let msg; try { msg = JSON.parse(ev.message); } catch(e){ return; }
+    if (!msg || !validChannelId(msg.id)) return;
+
+    if (msg.t === "fix" && Array.isArray(msg.urls)){
+      const urls = msg.urls.filter(validStreamUrl).slice(0, 3);
+      if (urls.length) (fixes[msg.id] = fixes[msg.id] || []).push(...urls);
+    }
+    if (msg.t === "report"){
+      reports[msg.id] = (reports[msg.id] || 0) + 1;
+    }
+  });
+  // de-duplicate
+  Object.keys(fixes).forEach(id => { fixes[id] = [...new Set(fixes[id])].slice(0, 3); });
+  return { fixes, reports };
+}
+
+async function fetchBoard(){
+  try{
+    const c = JSON.parse(localStorage.getItem("ow:board") || "null");
+    if (c && Date.now() - c.at < BOARD_TTL){ BOARD = c; return BOARD; }
+  }catch(e){}
+  try{
+    const ctl = new AbortController();
+    const to = setTimeout(() => ctl.abort(), 8000);
+    const r = await fetch(BOARD_URL + "/json?poll=1&since=7d", { signal: ctl.signal });
+    clearTimeout(to);
+    if (!r.ok) return BOARD;
+    const parsed = parseBoard(await r.text());
+    BOARD = { fixes: parsed.fixes, reports: parsed.reports, at: Date.now() };
+    try { localStorage.setItem("ow:board", JSON.stringify(BOARD)); } catch(e){}
+    // merge board fixes behind local and curated ones
+    Object.keys(BOARD.fixes).forEach(id => {
+      if (!FIXES[id]) FIXES[id] = BOARD.fixes[id];
+      else FIXES[id] = [...new Set(FIXES[id].concat(BOARD.fixes[id]))].slice(0, 4);
+    });
+    return BOARD;
+  }catch(e){ return BOARD; }
+}
+
+async function publishBoard(payload){
+  try{
+    const ctl = new AbortController();
+    const to = setTimeout(() => ctl.abort(), 8000);
+    const r = await fetch(BOARD_URL, {
+      method: "POST", body: JSON.stringify(payload), signal: ctl.signal,
+      headers: { "Content-Type": "text/plain" }
+    });
+    clearTimeout(to);
+    return r.ok;
+  }catch(e){ return false; }
 }
 
 /* ---------- shared fixes ----------
@@ -1245,6 +1321,8 @@ function filteredChannels(){
     const ga = (S.geoCC && a.cc === S.geoCC) ? 1 : 0;
     const gb = (S.geoCC && b.cc === S.geoCC) ? 1 : 0;
     if (ga !== gb) return gb - ga;
+    const ra = (BOARD.reports[a.id] || 0), rb = (BOARD.reports[b.id] || 0);
+    if (ra !== rb) return ra - rb;              // many reports → sink to the bottom
     return hScore(b.id) - hScore(a.id);
   });
 }
@@ -1423,6 +1501,7 @@ async function diagnose(ch){
       rep[ch.id] = { name: ch.name, at: Date.now(), count: (rep[ch.id] ? rep[ch.id].count : 0) + 1 };
       localStorage.setItem("ow:reports", JSON.stringify(rep));
     }catch(e){}
+    publishBoard({ t:"report", id: ch.id, reason: "no-source", ts: Date.now() });
   }
 }
 
@@ -2358,8 +2437,19 @@ $("gq").addEventListener("keydown", e => { if (e.key === "Enter") globalSearch()
 
 $("diagClose").onclick = () => $("diag").classList.remove("open");
 $("diagRetry").onclick = () => { if (diagCh) diagnose(diagCh); };
+$("diagReport").onclick = async () => {
+  if (!diagCh) return;
+  const ok = await publishBoard({ t:"report", id: diagCh.id, reason: "user-report", ts: Date.now() });
+  diagLog(ok ? "reported — other visitors' pages will now deprioritise this channel."
+             : "could not reach the fix board right now; your report is kept locally.",
+          ok ? "ok" : "warn");
+};
 $("diagShare").onclick = async () => {
   if (!diagFix) return;
+  const ok = await publishBoard({ t:"fix", id: diagFix.id, urls: diagFix.urls, ts: Date.now() });
+  diagLog(ok ? "published to the community fix board — other visitors will get it automatically."
+             : "could not reach the fix board; the GitHub route below still works.",
+          ok ? "ok" : "warn");
   const payload = {};
   payload[diagFix.id] = diagFix.urls;
   const json = JSON.stringify(payload, null, 2);
@@ -2566,6 +2656,7 @@ function stopASR(){
   await detectGeo();
 
   loadCommunityFixes();
+  fetchBoard().then(() => { if (S.channels.length) applyFixes(S.channels); });
   ageHealth();
   Object.keys(HEALTH).forEach(id => { if (hScore(id) < 0) S.bad.add(id); });
 
