@@ -83,6 +83,21 @@ h2.sec:first-child{margin-top:4px;}
 .thumb{aspect-ratio:16/10;background:#0a111c;display:flex;align-items:center;justify-content:center;position:relative;}
 .thumb img{max-width:78%;max-height:78%;object-fit:contain;}
 .thumb .ini{font-size:20px;font-weight:700;color:#33496b;}
+.rep{position:absolute;top:4px;right:4px;z-index:2;width:20px;height:20px;border-radius:6px;
+     border:1px solid #33456a;background:rgba(8,14,24,.82);color:#9fb4cf;font-size:11px;
+     line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;}
+.rep:hover{color:#ffcf7a;border-color:#7a5f2b;background:rgba(30,22,8,.95);}
+.tile{position:relative;}
+.diag{position:fixed;inset:0;background:rgba(3,7,12,.94);z-index:70;display:none;
+      align-items:center;justify-content:center;padding:16px;}
+.diag.open{display:flex;}
+.diagbox{width:min(620px,100%);background:var(--panel);border:1px solid var(--line2);
+         border-radius:12px;overflow:hidden;}
+.diagbox h3{margin:0;padding:13px 16px;font-size:14px;border-bottom:1px solid var(--line);}
+#diagbody{padding:14px 16px;font-size:12.5px;line-height:1.85;max-height:50vh;overflow:auto;
+          font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#cfe0f7;}
+#diagbody .ok{color:var(--ok);} #diagbody .bad{color:var(--bad);} #diagbody .warn{color:#e3c07b;}
+.diagfoot{padding:11px 16px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;}
 .qual{position:absolute;right:5px;bottom:5px;font-size:9px;background:rgba(0,0,0,.62);
       color:#cfe0f7;padding:1px 5px;border-radius:4px;}
 .tinfo{padding:7px 9px;}
@@ -479,6 +494,17 @@ code{background:#182338;padding:1px 5px;border-radius:4px;font-size:11px;color:#
   </div>
 </div>
 
+<div class="diag" id="diag">
+  <div class="diagbox">
+    <h3 id="diagtitle">Diagnosing channel…</h3>
+    <div id="diagbody"></div>
+    <div class="diagfoot">
+      <button class="btn" id="diagRetry">Re-run check</button>
+      <button class="btn" id="diagClose">Close</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 <footer>
   Public media, open books, open science. Streams and texts belong to their publishers.
@@ -671,6 +697,10 @@ function renderCountrySelect(){
   multi.value = "multi";
   multi.textContent = "🌍 All countries (top 108)";
   sel.appendChild(multi);
+  const world = document.createElement("option");
+  world.value = "world";
+  world.textContent = "🌐 Every country in the index";
+  sel.appendChild(world);
   S.countries.forEach(c => {
     const o = document.createElement("option");
     o.value = c.code;
@@ -855,18 +885,21 @@ const GOOD_CDN = /(amagi\.tv|akamaized\.net|cloudfront\.net|fastly\.net|jsrdn\.c
 
 function rankUrls(urls){
   const https = location.protocol === "https:";
-  const scored = urls.map(u => {
-    let sc = 0;
+  const usable = [], blocked = [];
+  urls.forEach(u => {
     const isHttps = /^https:/i.test(u);
-    if (https && !isHttps) return null;      // mixed content: cannot ever play
+    let sc = 0;
     if (isHttps) sc += 100;
     if (/\.m3u8/i.test(u)) sc += 20;
     if (GOOD_CDN.test(u)) sc += 10;
     if (/\/index\.m3u8$/i.test(u)) sc += 2;
-    return { u, sc };
-  }).filter(Boolean);
-  scored.sort((a,b) => b.sc - a.sc);
-  return scored.map(x => x.u);
+    (https && !isHttps ? blocked : usable).push({ u, sc });
+  });
+  usable.sort((a,b) => b.sc - a.sc);
+  // http-only streams cannot play on an https page, but the channel still
+  // exists — keep it counted and visible instead of silently deleting it.
+  blocked.sort((a,b) => b.sc - a.sc);
+  return usable.map(x => x.u).concat(blocked.map(x => x.u));
 }
 
 function parseM3U(text){
@@ -886,8 +919,12 @@ function parseM3U(text){
       logo: logo ? logo[1] : "", quality: qm ? qm[1] : "", cat: classify(name), urls:[url] };
     map.set(base, entry); out.push(entry);
   }
-  out.forEach(e => { e.urls = rankUrls(e.urls); });
-  return out.filter(e => e.urls.length);   // drop channels with no playable variant
+  out.forEach(e => {
+    const all = e.urls;
+    e.urls = rankUrls(all);
+    e.mixed = all.length > 0 && e.urls.every(u => location.protocol === "https:" && /^http:/i.test(u));
+  });
+  return out.filter(e => e.urls.length);   // only truly empty records are dropped
 }
 
 /* ---------- language filter (all countries) ---------- */
@@ -1030,7 +1067,8 @@ async function loadChannels(cc, force){
   $("mempty").style.display = "none";
 
   if (cc === "xx"){ S.channels = FEATURED.slice(); renderMedia(); $("stChannels").textContent = S.channels.length; return; }
-  if (cc === "multi"){ return loadMulti(force); }
+  if (cc === "multi"){ return loadMulti(force, topCodes()); }
+  if (cc === "world"){ return loadMulti(force, S.countries.map(c => c.code)); }
 
   $("mgrid").innerHTML = '<div class="empty">Loading ' + (S.mode === "radio" ? "stations" : "channels") + '…</div>';
   const list = S.mode === "radio" ? await getRadio(cc, force) : await getTV(cc, force);
@@ -1046,8 +1084,8 @@ async function loadChannels(cc, force){
   }
 }
 
-async function loadMulti(force){
-  const codes = topCodes();
+async function loadMulti(force, codesArg){
+  const codes = codesArg || topCodes();
   S.channels = [];
   renderMedia();
   let done = 0;
@@ -1137,16 +1175,22 @@ function renderMedia(){
   renderHealthStrip();
   grid.innerHTML = shown.map((ch, i) => `
     <div class="tile" data-i="${i}">
+      <button class="rep" data-rep="${i}" title="Report a problem with this channel">⚠</button>
       <div class="thumb">
         ${ch.logo ? `<img loading="lazy" src="${esc(ch.logo)}" alt="">` : `<span class="ini">${esc(ch.name.slice(0,2).toUpperCase())}</span>`}
         ${ch.quality ? `<span class="qual">${esc(ch.quality)}</span>` : ""}
       </div>
       <div class="tinfo">
         <div class="tname">${S.bad.has(ch.id) ? '<span style="color:var(--bad)">●</span> ' : ""}${esc(ch.name)}</div>
-        <div class="tmeta">${CAT_LABEL[ch.cat]||ch.cat}${ch.cc ? " · " + ch.cc.toUpperCase() : ""} · ${ch.urls.length} src</div>
+        <div class="tmeta">${CAT_LABEL[ch.cat]||ch.cat}${ch.cc ? " · " + ch.cc.toUpperCase() : ""} · ${ch.urls.length} src${ch.mixed ? " · http-only" : ""}</div>
       </div>
     </div>`).join("");
   grid.querySelectorAll(".tile").forEach(t => t.onclick = () => openPlayer(+t.dataset.i));
+  grid.querySelectorAll(".rep").forEach(b => b.onclick = ev => {
+    ev.stopPropagation();
+    const ch = shown[+b.dataset.rep];
+    if (ch) diagnose(ch);
+  });
 }
 
 /* ---------- player ---------- */
@@ -1156,6 +1200,113 @@ function pStatus(msg, err){
   el.innerHTML = "<b>" + (err ? "✕" : "●") + "</b> " + esc(msg);
 }
 function hostOf(u){ try{ return new URL(u).hostname.replace(/^www\./,""); }catch(e){ return "source"; } }
+
+/* ---------------- self-diagnosis + repair ----------------
+   Triggered by the ⚠ button on any tile. It re-reads the channel from
+   upstream (in case the index changed), then actually tries each source
+   in a hidden player, repairs what it can, and records the outcome.     */
+let diagCh = null;
+
+function diagLog(html, cls){
+  const b = $("diagbody");
+  const d = document.createElement("div");
+  if (cls) d.className = cls;
+  d.innerHTML = html;
+  b.appendChild(d);
+  b.scrollTop = b.scrollHeight;
+}
+
+function probeUrl(url, timeout){
+  return new Promise(resolve => {
+    if (location.protocol === "https:" && /^http:/i.test(url)){ resolve("mixed"); return; }
+    const v = document.createElement("video");
+    v.muted = true; v.preload = "auto";
+    let done = false;
+    const finish = ok => {
+      if (done) return; done = true;
+      try { if (hls) hls.destroy(); } catch(e){}
+      v.removeAttribute("src"); try { v.load(); } catch(e){}
+      resolve(ok);
+    };
+    let hls = null;
+    const timer = setTimeout(() => finish(false), timeout || 9000);
+
+    if (/\.m3u8/i.test(url)){
+      if (window.Hls && Hls.isSupported()){
+        hls = new Hls({ enableWorker:true, manifestLoadingTimeOut:7000 });
+        hls.loadSource(url); hls.attachMedia(v);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => { clearTimeout(timer); finish(true); });
+        hls.on(Hls.Events.ERROR, (_, d) => { if (d.fatal){ clearTimeout(timer); finish(false); } });
+      } else if (v.canPlayType("application/vnd.apple.mpegurl")){
+        v.src = url;
+        v.addEventListener("loadedmetadata", () => { clearTimeout(timer); finish(true); }, { once:true });
+        v.addEventListener("error", () => { clearTimeout(timer); finish(false); }, { once:true });
+      } else { clearTimeout(timer); finish(false); }
+    } else {
+      v.src = url;
+      v.addEventListener("loadedmetadata", () => { clearTimeout(timer); finish(true); }, { once:true });
+      v.addEventListener("error", () => { clearTimeout(timer); finish(false); }, { once:true });
+    }
+  });
+}
+
+async function diagnose(ch){
+  diagCh = ch;
+  $("diagbody").innerHTML = "";
+  $("diagtitle").textContent = "Diagnosing: " + ch.name;
+  $("diag").classList.add("open");
+
+  diagLog("channel: " + esc(ch.name) + "  ·  id: " + esc(ch.id) + (ch.cc ? "  ·  country: " + ch.cc.toUpperCase() : ""));
+
+  // 1) has upstream changed the sources for this channel?
+  if (ch.cc){
+    diagLog("re-reading this channel from the index…", "warn");
+    try{
+      const fresh = await getTV(ch.cc, true);
+      const hit = fresh.find(x => x.id === ch.id);
+      if (hit && hit.urls && JSON.stringify(hit.urls) !== JSON.stringify(ch.urls)){
+        ch.urls = hit.urls; ch._urls = orderedUrls(ch);
+        diagLog("upstream lists new source URLs — adopted them.", "ok");
+      } else if (hit){
+        diagLog("upstream unchanged.");
+      } else {
+        diagLog("channel no longer listed upstream (it may have been removed or renamed).", "warn");
+      }
+    }catch(e){ diagLog("could not re-read the index just now.", "bad"); }
+  }
+
+  // 2) test every source for real
+  const urls = ch._urls || orderedUrls(ch);
+  if (!urls.length){ diagLog("no stream URLs recorded for this channel.", "bad"); }
+  let working = null, idx = 0;
+  for (let i = 0; i < urls.length; i++){
+    const u = urls[i];
+    diagLog("testing source " + (i+1) + "/" + urls.length + " — " + esc(hostOf(u)));
+    const r = await probeUrl(u, 9000);
+    if (r === "mixed"){ diagLog("  blocked: http-only stream on an https page (browser rule, not a bug).", "warn"); continue; }
+    if (r === true){ diagLog("  plays correctly.", "ok"); working = u; idx = i; break; }
+    diagLog("  no response (dead URL, CORS refusal, or geo-block).", "bad");
+  }
+
+  // 3) repair or record
+  if (working){
+    markHealthy(ch.id); markTile(ch.id);
+    diagLog("repair complete — playing from source " + (idx+1) + ".", "ok");
+    S.list = filteredChannels();
+    S.playing = S.list.findIndex(x => x.id === ch.id);
+    S.srcIdx = idx;
+    $("pname").textContent = ch.name;
+    setTimeout(() => { $("diag").classList.remove("open"); openPlayer(S.playing >= 0 ? S.playing : 0); }, 900);
+  } else {
+    markDead(ch.id); markTile(ch.id);
+    diagLog("no source works right now. The channel is flagged, and the page will retry it automatically on a later visit.", "bad");
+    try{
+      const rep = JSON.parse(localStorage.getItem("ow:reports") || "{}");
+      rep[ch.id] = { name: ch.name, at: Date.now(), count: (rep[ch.id] ? rep[ch.id].count : 0) + 1 };
+      localStorage.setItem("ow:reports", JSON.stringify(rep));
+    }catch(e){}
+  }
+}
 
 function openPlayer(i){
   S.list = filteredChannels();
@@ -2087,6 +2238,9 @@ $("areg") && ($("areg").onchange = renderAtlas);
 $("gbtn").onclick = globalSearch;
 $("gq").addEventListener("keydown", e => { if (e.key === "Enter") globalSearch(); });
 
+$("diagClose").onclick = () => $("diag").classList.remove("open");
+$("diagRetry").onclick = () => { if (diagCh) diagnose(diagCh); };
+$("diag").addEventListener("click", e => { if (e.target === $("diag")) $("diag").classList.remove("open"); });
 $("closeBtn").onclick = closePlayer;
 $("nextBtn").onclick = () => advance(1);
 $("prevBtn").onclick = () => advance(-1);
