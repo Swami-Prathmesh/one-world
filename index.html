@@ -864,6 +864,54 @@ function ageHealth(){
 }
 
 /* status strip: what the page currently knows about itself */
+/* ---------------- background auto-repair ----------------
+   Runs in the visitor's own browser (their internet, their CORS view),
+   which is the only place a stream can honestly be verified. Bounded so
+   it never hogs the connection: a few channels per session, one source
+   each, short timeouts, and it stays silent unless it fixes something.  */
+let autoRepairStats = { tried: 0, fixed: 0, running: false };
+
+function autoRepairDue(){
+  try{
+    const last = parseInt(localStorage.getItem("ow:autoRepair") || "0", 10) || 0;
+    return Date.now() - last > 10 * 60 * 1000;
+  }catch(e){ return true; }
+}
+
+async function autoRepair(limit){
+  if (autoRepairStats.running || !autoRepairDue()) return;
+  const candidates = S.channels
+    .filter(ch => !ch.fixed && ch.urls && ch.urls.length && (S.bad.has(ch.id) || ch.mixed))
+    .slice(0, limit || 8);
+  if (!candidates.length) return;
+
+  autoRepairStats.running = true;
+  try { localStorage.setItem("ow:autoRepair", String(Date.now())); } catch(e){}
+  renderHealthStrip();
+
+  for (const ch of candidates){
+    if (document.hidden) break;                 // stop when the tab is in the background
+    autoRepairStats.tried++;
+    const urls = (ch._urls || orderedUrls(ch)).slice(0, 2);
+    for (const u of urls){
+      const r = await probeUrl(u, 6000);
+      if (r === true){
+        markHealthy(ch.id);
+        saveFix(ch, u);
+        autoRepairStats.fixed++;
+        markTile(ch.id);
+        break;
+      }
+    }
+    renderHealthStrip();
+  }
+  autoRepairStats.running = false;
+  renderHealthStrip();
+  if (autoRepairStats.fixed > 0){
+    toast("Auto-repair fixed " + autoRepairStats.fixed + " channel(s) — open ⚠ on any of them to share the fix");
+  }
+}
+
 function renderHealthStrip(){
   const el = $("mhealth");
   if (!el) return;
@@ -874,7 +922,9 @@ function renderHealthStrip(){
   try { day = localStorage.getItem("ow:idxDay") || "never"; } catch(e){}
   try { mir = "mirror " + ((parseInt(localStorage.getItem("ow:mirror") || "0", 10) || 0) + 1) + "/" + MIRRORS.length; } catch(e){}
   el.textContent = "self-check · synced " + day + " · " + mir +
-    " · healthy " + ok + " · dead " + dead + " · " + S.channels.length + " loaded";
+    " · healthy " + ok + " · dead " + dead + " · " + S.channels.length + " loaded" +
+    (autoRepairStats.running ? " · auto-repair running…"
+      : (autoRepairStats.fixed ? " · auto-repaired " + autoRepairStats.fixed : ""));
 }
 
 /* ---------- stream URL ranking ----------
@@ -1135,6 +1185,7 @@ async function loadChannels(cc, force){
   sortHomeFirst();
   renderMedia();
   $("stChannels").textContent = list.length;
+  if (list.length) setTimeout(() => autoRepair(6), 4000);
   if (!list.length){
     $("mempty").style.display = "block";
     $("mempty").textContent = S.mode === "radio"
@@ -1162,6 +1213,7 @@ async function loadMulti(force, codesArg){
   sortHomeFirst();
   renderMedia();
   $("stChannels").textContent = S.channels.length;
+  if (S.channels.length) setTimeout(() => autoRepair(8), 4000);
   if (!S.channels.length){
     $("mempty").style.display = "block";
     $("mempty").textContent = "No sources responded. Check the connection and try Refresh.";
