@@ -38,6 +38,9 @@ header{position:sticky;top:0;z-index:40;background:rgba(6,10,17,.96);backdrop-fi
 .hrow{display:flex;align-items:center;gap:12px;padding:11px 18px;flex-wrap:wrap;}
 .brand{font-size:15px;font-weight:700;letter-spacing:.6px;white-space:nowrap;}
 .brand span{color:var(--accent);}
+.clock{font-size:11.5px;color:var(--muted);white-space:nowrap;
+        font-variant-numeric:tabular-nums;letter-spacing:.3px;}
+.clock b{color:var(--accent);font-weight:600;}
 .gsearch{flex:1;min-width:180px;display:flex;gap:6px;}
 .gsearch input{flex:1;background:#08101b;border:1px solid var(--line);color:var(--text);
   border-radius:8px;padding:8px 11px;font-size:12.5px;outline:none;font-family:inherit;}
@@ -181,6 +184,7 @@ code{background:#182338;padding:1px 5px;border-radius:4px;font-size:11px;color:#
 <header>
   <div class="hrow">
     <div class="brand">ONE <span>WORLD</span></div>
+    <div class="clock" id="hclock">—</div>
     <div class="gsearch">
       <input id="gq" type="search" placeholder="Search countries, channels, books, scriptures, papers…" spellcheck="false">
       <button id="gbtn">Search</button>
@@ -534,7 +538,7 @@ async function fetchAny(url, { timeout = 15000 } = {}){
 /* ================= STATE ================= */
 const S = {
   mode:"tv", view:"home", countries:[], channels:[], channelCountry:"multi",
-  geoCC:null, lang:"all",
+  geoCC:null, lang:"all", bad:new Set(),
   category:"all", q:"", wisdomTrad:"all", bookColl:"gutenberg",
   playing:-1, srcIdx:0, hls:null, list:[], news:[]
 };
@@ -694,6 +698,12 @@ setInterval(() => {
   document.querySelectorAll("[data-tz]").forEach(el => { el.textContent = localTime(el.dataset.tz); });
   const cl = $("stClock");
   if (cl) cl.textContent = new Date().toLocaleTimeString("en-GB", { hour12:false });
+  const hc = $("hclock");
+  if (hc){
+    const d = new Date();
+    hc.innerHTML = d.toLocaleDateString("en-GB", { weekday:"short", day:"2-digit", month:"short" })
+      + " · <b>" + d.toLocaleTimeString("en-GB", { hour12:false }) + "</b>";
+  }
 }, 1000);
 
 /* ================= MEDIA (preserved engine) ================= */
@@ -722,6 +732,29 @@ const CAT_LABEL = { all:"All", news:"News", sports:"Sports", movies:"Movies", mu
 
 function classify(n){ for (const [c,re] of CAT_RULES) if (re.test(n)) return c; return "general"; }
 
+/* ---------- stream URL ranking ----------
+   Most "not working" channels fail for one of three reasons: the page is
+   served over https but the stream is http (mixed content, always blocked),
+   the first variant is dead while a later one works, or the CDN refuses CORS.
+   We can fix the first two client-side, so rank candidates accordingly. */
+const GOOD_CDN = /(amagi\.tv|akamaized\.net|cloudfront\.net|fastly\.net|jsrdn\.com|wmncdn\.net|tangotv\.|bitgravity\.com|nic\.in|nicls|playhls|ipcloud|mangomolo|z5ams|yupptv|streamready)/i;
+
+function rankUrls(urls){
+  const https = location.protocol === "https:";
+  const scored = urls.map(u => {
+    let sc = 0;
+    const isHttps = /^https:/i.test(u);
+    if (https && !isHttps) return null;      // mixed content: cannot ever play
+    if (isHttps) sc += 100;
+    if (/\.m3u8/i.test(u)) sc += 20;
+    if (GOOD_CDN.test(u)) sc += 10;
+    if (/\/index\.m3u8$/i.test(u)) sc += 2;
+    return { u, sc };
+  }).filter(Boolean);
+  scored.sort((a,b) => b.sc - a.sc);
+  return scored.map(x => x.u);
+}
+
 function parseM3U(text){
   const out = [], map = new Map(), lines = text.split(/\r?\n/);
   for (let i = 0; i < lines.length; i++){
@@ -739,7 +772,8 @@ function parseM3U(text){
       logo: logo ? logo[1] : "", quality: qm ? qm[1] : "", cat: classify(name), urls:[url] };
     map.set(base, entry); out.push(entry);
   }
-  return out;
+  out.forEach(e => { e.urls = rankUrls(e.urls); });
+  return out.filter(e => e.urls.length);   // drop channels with no playable variant
 }
 
 /* ---------- language filter (all countries) ---------- */
@@ -944,6 +978,27 @@ function filteredChannels(){
     (!q || c.name.toLowerCase().includes(q)));
 }
 
+function markTile(id){
+  document.querySelectorAll(".tile").forEach(t => {
+    const nm = t.querySelector(".tname");
+    if (!nm) return;
+  });
+  // cheap path: re-render only the badge text
+  renderMediaBadges();
+}
+function renderMediaBadges(){
+  const items = filteredChannels();
+  document.querySelectorAll("#mgrid .tile").forEach((t, i) => {
+    const ch = items[i];
+    const nm = t.querySelector(".tname");
+    if (!ch || !nm) return;
+    const bad = S.bad.has(ch.id);
+    const label = esc(ch.name);
+    nm.innerHTML = (bad ? '<span style="color:var(--bad)">●</span> ' : "") + label;
+    t.style.opacity = bad ? "0.55" : "";
+  });
+}
+
 function renderMedia(){
   renderChips();
   const items = filteredChannels();
@@ -964,7 +1019,7 @@ function renderMedia(){
         ${ch.quality ? `<span class="qual">${esc(ch.quality)}</span>` : ""}
       </div>
       <div class="tinfo">
-        <div class="tname">${esc(ch.name)}</div>
+        <div class="tname">${S.bad.has(ch.id) ? '<span style="color:var(--bad)">●</span> ' : ""}${esc(ch.name)}</div>
         <div class="tmeta">${CAT_LABEL[ch.cat]||ch.cat}${ch.cc ? " · " + ch.cc.toUpperCase() : ""} · ${ch.urls.length} src</div>
       </div>
     </div>`).join("");
@@ -1000,7 +1055,13 @@ function playSource(ch){
   const url = ch.urls[S.srcIdx];
   if (S.hls){ S.hls.destroy(); S.hls = null; }
   v.removeAttribute("src");
-  if (!url){ toast("“" + ch.name + "” failed on every source — trying next"); advance(1); return; }
+  if (!url){
+    S.bad.add(ch.id);
+    markTile(ch.id);
+    toast("“" + ch.name + "” has no working source — moving to the next channel");
+    advance(1);
+    return;
+  }
   pStatus("connecting… source " + (S.srcIdx+1) + "/" + ch.urls.length + " · " + hostOf(url));
 
   if (!/\.m3u8/i.test(url)){
@@ -1016,6 +1077,7 @@ function playSource(ch){
     S.hls = hls;
     hls.loadSource(url); hls.attachMedia(v);
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      S.bad.delete(ch.id); markTile(ch.id);
       pStatus("live · source " + (S.srcIdx+1) + "/" + ch.urls.length);
       v.play().catch(() => {});
     });
@@ -1064,7 +1126,15 @@ const FEEDS = [
   { r:"science", n:"Space.com", u:"https://www.space.com/feeds/all" },
   { r:"business", n:"Economic Times", u:"https://economictimes.indiatimes.com/rssfeedstopstories.cms" },
   { r:"environment", n:"Guardian Environment", u:"https://www.theguardian.com/environment/rss" },
-  { r:"environment", n:"Mongabay", u:"https://news.mongabay.com/feed/" }
+  { r:"environment", n:"Mongabay", u:"https://news.mongabay.com/feed/" },
+  { r:"in", n:"Hindustan Times", u:"https://www.hindustantimes.com/feeds/rss/india-news/rssfeed.xml" },
+  { r:"in", n:"Times of India", u:"https://timesofindia.indiatimes.com/rssfeedstopstories.cms" },
+  { r:"world", n:"NPR World", u:"https://feeds.npr.org/1004/rss.xml" },
+  { r:"world", n:"CNA Asia", u:"https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml" },
+  { r:"world", n:"ABC Australia", u:"https://www.abc.net.au/news/feed/51120/rss.xml" },
+  { r:"science", n:"ISRO", u:"https://www.isro.gov.in/rss.xml" },
+  { r:"science", n:"Nature Briefing", u:"https://www.nature.com/nature.rss" },
+  { r:"business", n:"Business Standard", u:"https://www.business-standard.com/rss/home_page_top_stories.rss" }
 ];
 
 function parseRSS(xml, feedName, region){
@@ -1090,7 +1160,10 @@ async function loadNews(){
     catch(e){ return []; }
   }));
   S.news = results.flat().sort(() => Math.random() - 0.5);
-  $("newsStatus").textContent = S.news.length ? S.news.length + " headlines" : "feeds unreachable right now";
+  const stamp = new Date().toLocaleTimeString("en-GB", { hour12:false });
+  $("newsStatus").textContent = S.news.length
+    ? S.news.length + " headlines · updated " + stamp
+    : "feeds unreachable right now · last try " + stamp;
   renderNews(); renderTicker();
 }
 
@@ -2083,6 +2156,7 @@ function stopASR(){
   await detectGeo();
   loadChannels(S.channelCountry, false);
   loadNews();
+  setInterval(loadNews, 5 * 60 * 1000);   // keep headlines fresh
   searchBooks();
 
   $("stBooks").textContent = "70k+";
