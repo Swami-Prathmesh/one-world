@@ -499,6 +499,7 @@ code{background:#182338;padding:1px 5px;border-radius:4px;font-size:11px;color:#
     <h3 id="diagtitle">Diagnosing channel…</h3>
     <div id="diagbody"></div>
     <div class="diagfoot">
+      <button class="btn" id="diagShare" disabled>Share fix</button>
       <button class="btn" id="diagRetry">Re-run check</button>
       <button class="btn" id="diagClose">Close</button>
     </div>
@@ -883,6 +884,20 @@ function renderHealthStrip(){
    We can fix the first two client-side, so rank candidates accordingly. */
 const GOOD_CDN = /(amagi\.tv|akamaized\.net|cloudfront\.net|fastly\.net|jsrdn\.com|wmncdn\.net|tangotv\.|bitgravity\.com|nic\.in|nicls|playhls|ipcloud|mangomolo|z5ams|yupptv|streamready)/i;
 
+/* Many Indian cable CDNs serve the same path over http and https. When a
+   channel is http-only, try the https form of the identical URL before
+   giving up — this repairs a large share of "blocked" channels. */
+function httpsVariants(urls){
+  const out = urls.slice();
+  urls.forEach(u => {
+    if (/^http:\/\//i.test(u)){
+      const v = u.replace(/^http:\/\//i, "https://");
+      if (!out.includes(v)) out.push(v);
+    }
+  });
+  return out;
+}
+
 function rankUrls(urls){
   const https = location.protocol === "https:";
   const usable = [], blocked = [];
@@ -920,11 +935,54 @@ function parseM3U(text){
     map.set(base, entry); out.push(entry);
   }
   out.forEach(e => {
-    const all = e.urls;
+    const all = httpsVariants(e.urls);
     e.urls = rankUrls(all);
     e.mixed = all.length > 0 && e.urls.every(u => location.protocol === "https:" && /^http:/i.test(u));
   });
   return out.filter(e => e.urls.length);   // only truly empty records are dropped
+}
+
+/* ---------- shared fixes ----------
+   A fix found on one machine can reach everyone else through a small JSON
+   file in the repository. The page reads it at boot and applies any URL
+   overrides it contains, so a channel repaired once stays repaired.       */
+let FIXES = {};
+try { FIXES = JSON.parse(localStorage.getItem("ow:fixes") || "{}"); } catch(e){ FIXES = {}; }
+
+async function loadCommunityFixes(){
+  try{
+    const r = await fetch("community-fixes.json?ts=" + Date.now(), { cache:"no-store" });
+    if (!r.ok) return 0;
+    const shared = await r.json();
+    let n = 0;
+    Object.keys(shared || {}).forEach(id => {
+      const urls = shared[id];
+      if (Array.isArray(urls) && urls.length){ FIXES[id] = urls; n++; }
+    });
+    return n;
+  }catch(e){ return 0; }
+}
+
+function applyFixes(list){
+  if (!list || !list.length) return list;
+  list.forEach(ch => {
+    const fix = FIXES[ch.id];
+    if (Array.isArray(fix) && fix.length){
+      const merged = fix.concat(ch.urls || []);
+      ch.urls = [...new Set(merged)];
+      ch._urls = null;
+      ch.mixed = ch.urls.every(u => location.protocol === "https:" && /^http:/i.test(u));
+      ch.fixed = true;
+    }
+  });
+  return list;
+}
+
+function saveFix(ch, url){
+  if (!ch || !url) return;
+  FIXES[ch.id] = [url].concat((ch.urls || []).filter(u => u !== url));
+  try { localStorage.setItem("ow:fixes", JSON.stringify(FIXES)); } catch(e){}
+  applyFixes([ch]);
 }
 
 /* ---------- language filter (all countries) ---------- */
@@ -1021,6 +1079,7 @@ async function getTV(cc, force){
       const list = parseM3U(txt);
       if (!list.length) continue;
       rememberMirror(k);
+      applyFixes(list);
       localStorage.setItem(key, JSON.stringify({ t:Date.now(), d:list }));
       return list;
     }catch(e){}
@@ -1072,7 +1131,7 @@ async function loadChannels(cc, force){
 
   $("mgrid").innerHTML = '<div class="empty">Loading ' + (S.mode === "radio" ? "stations" : "channels") + '…</div>';
   const list = S.mode === "radio" ? await getRadio(cc, force) : await getTV(cc, force);
-  S.channels = list;
+  S.channels = applyFixes(list);
   sortHomeFirst();
   renderMedia();
   $("stChannels").textContent = list.length;
@@ -1205,7 +1264,7 @@ function hostOf(u){ try{ return new URL(u).hostname.replace(/^www\./,""); }catch
    Triggered by the ⚠ button on any tile. It re-reads the channel from
    upstream (in case the index changed), then actually tries each source
    in a hidden player, repairs what it can, and records the outcome.     */
-let diagCh = null;
+let diagCh = null, diagFix = null;
 
 function diagLog(html, cls){
   const b = $("diagbody");
@@ -1283,15 +1342,22 @@ async function diagnose(ch){
     const u = urls[i];
     diagLog("testing source " + (i+1) + "/" + urls.length + " — " + esc(hostOf(u)));
     const r = await probeUrl(u, 9000);
-    if (r === "mixed"){ diagLog("  blocked: http-only stream on an https page (browser rule, not a bug).", "warn"); continue; }
+    if (r === "mixed"){ diagLog("  http-only — an https variant of this URL was tried first and did not answer either.", "warn"); continue; }
     if (r === true){ diagLog("  plays correctly.", "ok"); working = u; idx = i; break; }
     diagLog("  no response (dead URL, CORS refusal, or geo-block).", "bad");
   }
 
   // 3) repair or record
+  diagFix = null;
+  $("diagShare").disabled = true;
+
   if (working){
     markHealthy(ch.id); markTile(ch.id);
+    saveFix(ch, working);
+    diagFix = { id: ch.id, urls: [working] };
+    $("diagShare").disabled = false;
     diagLog("repair complete — playing from source " + (idx+1) + ".", "ok");
+    diagLog("this fix is saved for you, and you can share it so other visitors get it too.", "ok");
     S.list = filteredChannels();
     S.playing = S.list.findIndex(x => x.id === ch.id);
     S.srcIdx = idx;
@@ -2240,6 +2306,19 @@ $("gq").addEventListener("keydown", e => { if (e.key === "Enter") globalSearch()
 
 $("diagClose").onclick = () => $("diag").classList.remove("open");
 $("diagRetry").onclick = () => { if (diagCh) diagnose(diagCh); };
+$("diagShare").onclick = async () => {
+  if (!diagFix) return;
+  const payload = {};
+  payload[diagFix.id] = diagFix.urls;
+  const json = JSON.stringify(payload, null, 2);
+  const title = "Channel fix: " + diagFix.id;
+  const body = "A working source was found for this channel on a visitor's connection.\n\n"
+    + "Add it to community-fixes.json so every visitor gets it:\n\n```json\n" + json + "\n```\n";
+  const url = "https://github.com/Swami-Prathmesh/one-world/issues/new?title="
+    + encodeURIComponent(title) + "&body=" + encodeURIComponent(body);
+  try { await navigator.clipboard.writeText(json); diagLog("fix copied to clipboard — paste it into community-fixes.json.", "ok"); } catch(e){}
+  window.open(url, "_blank", "noopener");
+};
 $("diag").addEventListener("click", e => { if (e.target === $("diag")) $("diag").classList.remove("open"); });
 $("closeBtn").onclick = closePlayer;
 $("nextBtn").onclick = () => advance(1);
@@ -2434,6 +2513,7 @@ function stopASR(){
   renderLangSelect();
   await detectGeo();
 
+  loadCommunityFixes();
   ageHealth();
   Object.keys(HEALTH).forEach(id => { if (hScore(id) < 0) S.bad.add(id); });
 
