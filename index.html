@@ -251,6 +251,7 @@ code{background:#182338;padding:1px 5px;border-radius:4px;font-size:11px;color:#
       <button class="btn" id="mRefresh">Refresh index</button>
     </div>
     <div class="small muted" id="mprogress" style="margin:-4px 0 10px"></div>
+    <div class="small muted" id="mhealth" style="margin:-6px 0 10px;opacity:.75"></div>
     <div class="chips" id="chips"></div>
     <div class="grid g-auto" id="mgrid"></div>
     <div class="empty" id="mempty" style="display:none"></div>
@@ -732,6 +733,119 @@ const CAT_LABEL = { all:"All", news:"News", sports:"Sports", movies:"Movies", mu
 
 function classify(n){ for (const [c,re] of CAT_RULES) if (re.test(n)) return c; return "general"; }
 
+/* ==================================================================
+   SELF-HEALING / SELF-UPDATING LAYER
+   Honest description: this is adaptive behaviour learned from what
+   actually happens in this browser — not machine learning. It remembers
+   which channels played, which died, which index mirror worked, and when
+   the upstream channel list last changed, and it re-orders work accordingly.
+   ================================================================== */
+const HEALTH_KEY = "ow:health";
+const HEALTH = (() => { try { return JSON.parse(localStorage.getItem(HEALTH_KEY) || "{}"); } catch(e){ return {}; } })();
+
+function hOf(id){
+  if (!HEALTH[id]) HEALTH[id] = { ok:0, fail:0, last:0, rot:0 };
+  return HEALTH[id];
+}
+function hScore(id){
+  const h = HEALTH[id];
+  if (!h) return 0;
+  return (h.ok * 2) - (h.fail * 3);
+}
+let hsTimer = null;
+function saveHealthSoon(){
+  if (hsTimer) return;
+  hsTimer = setTimeout(() => {
+    hsTimer = null;
+    try { localStorage.setItem(HEALTH_KEY, JSON.stringify(HEALTH)); } catch(e){}
+  }, 1200);
+}
+function markHealthy(id){
+  const h = hOf(id); h.ok++; h.fail = 0; h.last = Date.now(); h.rot = 0;
+  S.bad.delete(id); saveHealthSoon();
+}
+function markDead(id){
+  const h = hOf(id); h.fail++; h.last = Date.now(); h.rot = (h.rot || 0) + 1;
+  S.bad.add(id); saveHealthSoon();
+}
+
+/* rotate the source list so a channel that failed on source 1 last time
+   starts from source 2 next time — a temporary outage stops being permanent */
+function orderedUrls(ch){
+  const urls = ch.urls || [];
+  if (urls.length < 2) return urls;
+  const rot = (HEALTH[ch.id] && HEALTH[ch.id].rot) || 0;
+  const k = rot % urls.length;
+  return urls.slice(k).concat(urls.slice(0, k));
+}
+
+/* remember which index mirror answered, and try it first next time */
+function mirrorOrder(){
+  let i = 0;
+  try { i = parseInt(localStorage.getItem("ow:mirror") || "0", 10) || 0; } catch(e){}
+  if (i < 0 || i >= MIRRORS.length) i = 0;
+  return MIRRORS.map((_, k) => (k + i) % MIRRORS.length).map(k => [k, MIRRORS[k]]);
+}
+function rememberMirror(k){
+  try { localStorage.setItem("ow:mirror", String(k)); } catch(e){}
+}
+
+/* once a day, ask upstream whether the channel index changed.
+   If it did, drop cached country lists so the next view is fresh. */
+async function checkIndexVersion(){
+  const today = new Date().toISOString().slice(0, 10);
+  let lastDay = null;
+  try { lastDay = localStorage.getItem("ow:idxDay"); } catch(e){}
+  if (lastDay === today) return false;
+  try { localStorage.setItem("ow:idxDay", today); } catch(e){}
+  try{
+    const r = await fetch("https://api.github.com/repos/iptv-org/iptv/commits?path=streams&per_page=1",
+      { headers: { Accept: "application/vnd.github+json" } });
+    if (!r.ok) return false;
+    const j = await r.json();
+    const sha = j && j[0] && j[0].sha;
+    let prev = null;
+    try { prev = localStorage.getItem("ow:idxSha"); } catch(e){}
+    if (sha && sha !== prev){
+      try { localStorage.setItem("ow:idxSha", sha); } catch(e){}
+      if (prev){
+        Object.keys(localStorage)
+          .filter(k => k.startsWith("ow:m:") || k.startsWith("ow:r:"))
+          .forEach(k => { try { localStorage.removeItem(k); } catch(e){} });
+        return true;
+      }
+    }
+  }catch(e){}
+  return false;
+}
+
+/* old failures decay: a channel that died last week is not still guilty today */
+function ageHealth(){
+  const now = Date.now(), DAY = 24*60*60*1000;
+  Object.keys(HEALTH).forEach(id => {
+    const h = HEALTH[id];
+    if (!h || !h.last) return;
+    const age = now - h.last;
+    if (age > 7*DAY){ delete HEALTH[id]; return; }
+    if (age > DAY){ h.fail = Math.max(0, (h.fail || 0) - 1); }
+  });
+  saveHealthSoon();
+}
+
+/* status strip: what the page currently knows about itself */
+function renderHealthStrip(){
+  const el = $("mhealth");
+  if (!el) return;
+  const ids = Object.keys(HEALTH);
+  const ok = ids.filter(i => hScore(i) > 0).length;
+  const dead = ids.filter(i => hScore(i) < 0).length;
+  let day = "never", mir = "—";
+  try { day = localStorage.getItem("ow:idxDay") || "never"; } catch(e){}
+  try { mir = "mirror " + ((parseInt(localStorage.getItem("ow:mirror") || "0", 10) || 0) + 1) + "/" + MIRRORS.length; } catch(e){}
+  el.textContent = "self-check · synced " + day + " · " + mir +
+    " · healthy " + ok + " · dead " + dead + " · " + S.channels.length + " loaded";
+}
+
 /* ---------- stream URL ranking ----------
    Most "not working" channels fail for one of three reasons: the page is
    served over https but the stream is http (mixed content, always blocked),
@@ -864,11 +978,12 @@ async function getTV(cc, force){
       if (c && Date.now() - c.t < 30*60*1000) return c.d;
     }catch(e){}
   }
-  for (const mk of MIRRORS){
+  for (const [k, mk] of mirrorOrder()){
     try{
       const txt = await tget(mk(cc));
       const list = parseM3U(txt);
       if (!list.length) continue;
+      rememberMirror(k);
       localStorage.setItem(key, JSON.stringify({ t:Date.now(), d:list }));
       return list;
     }catch(e){}
@@ -972,10 +1087,17 @@ function renderChips(){
 
 function filteredChannels(){
   const q = S.q.toLowerCase();
-  return S.channels.filter(c =>
+  const list = S.channels.filter(c =>
     (S.category === "all" || c.cat === S.category) &&
     matchesLang(c, S.lang) &&
     (!q || c.name.toLowerCase().includes(q)));
+  // home country first, then whatever has actually played before
+  return list.slice().sort((a, b) => {
+    const ga = (S.geoCC && a.cc === S.geoCC) ? 1 : 0;
+    const gb = (S.geoCC && b.cc === S.geoCC) ? 1 : 0;
+    if (ga !== gb) return gb - ga;
+    return hScore(b.id) - hScore(a.id);
+  });
 }
 
 function markTile(id){
@@ -1012,6 +1134,7 @@ function renderMedia(){
     if (el) el.textContent = "showing " + CAP + " of " + items.length +
       " — narrow it with search or a category chip";
   }
+  renderHealthStrip();
   grid.innerHTML = shown.map((ch, i) => `
     <div class="tile" data-i="${i}">
       <div class="thumb">
@@ -1039,6 +1162,7 @@ function openPlayer(i){
   if (!S.list[i]) return;
   S.playing = i; S.srcIdx = 0;
   const ch = S.list[i];
+  if (ch) ch._urls = orderedUrls(ch);
   $("pname").textContent = ch.name;
   const c = S.countries.find(x => x.code === S.channelCountry);
   const place = ch.cc ? ch.cc.toUpperCase()
@@ -1052,17 +1176,18 @@ function openPlayer(i){
 
 function playSource(ch){
   const v = $("pvideo");
-  const url = ch.urls[S.srcIdx];
+  if (!ch._urls) ch._urls = orderedUrls(ch);
+  const url = ch._urls[S.srcIdx];
   if (S.hls){ S.hls.destroy(); S.hls = null; }
   v.removeAttribute("src");
   if (!url){
-    S.bad.add(ch.id);
+    markDead(ch.id);
     markTile(ch.id);
     toast("“" + ch.name + "” has no working source — moving to the next channel");
     advance(1);
     return;
   }
-  pStatus("connecting… source " + (S.srcIdx+1) + "/" + ch.urls.length + " · " + hostOf(url));
+  pStatus("connecting… source " + (S.srcIdx+1) + "/" + (ch._urls ? ch._urls.length : ch.urls.length) + " · " + hostOf(url));
 
   if (!/\.m3u8/i.test(url)){
     v.src = url;
@@ -1077,7 +1202,7 @@ function playSource(ch){
     S.hls = hls;
     hls.loadSource(url); hls.attachMedia(v);
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      S.bad.delete(ch.id); markTile(ch.id);
+      markHealthy(ch.id); markTile(ch.id);
       pStatus("live · source " + (S.srcIdx+1) + "/" + ch.urls.length);
       v.play().catch(() => {});
     });
@@ -2154,6 +2279,15 @@ function stopASR(){
   loadCountries();
   renderLangSelect();
   await detectGeo();
+
+  ageHealth();
+  Object.keys(HEALTH).forEach(id => { if (hScore(id) < 0) S.bad.add(id); });
+
+  // self-update: if the upstream index changed since yesterday, caches were cleared
+  checkIndexVersion().then(changed => {
+    if (changed) toast("Channel index updated upstream — refreshing the list");
+  });
+
   loadChannels(S.channelCountry, false);
   loadNews();
   setInterval(loadNews, 5 * 60 * 1000);   // keep headlines fresh
